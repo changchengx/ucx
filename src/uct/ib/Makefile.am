@@ -157,6 +157,21 @@ libuct_ib_la_SOURCES += \
 	efa/ib_efa_md.c
 endif # HAVE_EFA_DV
 
+if HAVE_TL_SRD
+libuct_ib_la_LDFLAGS +=  $(LIB_EFA)
+
+noinst_HEADERS += \
+    srd/srd_def.h \
+    srd/srd_ep.h \
+    srd/srd_iface.h \
+    srd/srd_inl.h
+
+libuct_ib_la_SOURCES += \
+    srd/srd_ep.c \
+    srd/srd_iface.c \
+    srd/srd_log.c
+endif # HAVE_TL_SRD
+
 include $(top_srcdir)/config/module.am
 
 endif # HAVE_IB

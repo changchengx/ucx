@@ -47,6 +47,15 @@ AC_ARG_WITH([dc],
 
 
 #
+# SRD Support
+#
+AC_ARG_WITH([srd],
+            [AC_HELP_STRING([--with-srd], [Compile with EFA Scalable Reliable Datagram support])],
+            [],
+            [with_srd=yes])
+
+
+#
 # mlx5 DV support
 #
 AC_ARG_WITH([mlx5-dv],
@@ -430,6 +439,11 @@ AS_IF([test "x$with_ib" = "xyes"],
        # EFA device support
        m4_include([src/uct/ib/efa/configure.m4])
 
+       AS_IF([test "x$with_efa_dv" != xno],
+             [AS_IF([test "x$with_srd" != xno],
+                    [AC_DEFINE([HAVE_TL_SRD], 1, [SRD transport support])])],
+             [with_srd=no])
+
        LDFLAGS="$save_LDFLAGS"
        CFLAGS="$save_CFLAGS"
        CPPFLAGS="$save_CPPFLAGS"
@@ -440,6 +454,7 @@ AS_IF([test "x$with_ib" = "xyes"],
         with_dc=no
         with_rc=no
         with_ud=no
+        with_srd=no
         with_mlx5_hw=no
         with_mlx5_dv=no
         with_efa_dv=no
@@ -454,6 +469,7 @@ AM_CONDITIONAL([HAVE_TL_DC],   [test "x$with_dc" != xno])
 AM_CONDITIONAL([HAVE_DC_DV],   [test -n "$have_dc_dv"])
 AM_CONDITIONAL([HAVE_DC_EXP],  [test -n "$have_dc_exp"])
 AM_CONDITIONAL([HAVE_TL_UD],   [test "x$with_ud" != xno])
+AM_CONDITIONAL([HAVE_TL_SRD],  [test "x$with_srd" != xno])
 AM_CONDITIONAL([HAVE_MLX5_HW], [test "x$with_mlx5_hw" != xno])
 AM_CONDITIONAL([HAVE_MLX5_DV], [test "x$with_mlx5_dv" = xyes])
 AM_CONDITIONAL([HAVE_DEVX],    [test -n "$have_devx"])
