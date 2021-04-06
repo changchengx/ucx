@@ -32,7 +32,8 @@ static void uct_srd_ep_set_state(uct_srd_ep_t *ep, uint32_t state)
 }
 
 #if ENABLE_DEBUG_DATA
-static void uct_srd_peer_copy(uct_srd_peer_name_t *dst, uct_srd_peer_name_t *src)
+static void uct_srd_peer_copy(uct_srd_peer_name_t *dst,
+                              uct_srd_peer_name_t *src)
 {
     memcpy(dst, src, sizeof(*src));
 }
@@ -45,28 +46,10 @@ static void uct_srd_peer_copy(uct_srd_peer_name_t *dst, uct_srd_peer_name_t *src
 static void uct_srd_ep_reset(uct_srd_ep_t *ep)
 {
     ep->tx.send_sn         = 0;
+    ep->tx.last_purge      = 0;
     ep->tx.num_outstanding = 0;
     ep->tx.pending.ops     = UCT_SRD_EP_OP_NONE;
     ep->rx_creq_count      = 0;
-}
-
-static void uct_srd_ep_purge_outstanding(uct_srd_ep_t *ep)
-{
-    uct_srd_iface_t *iface = ucs_derived_of(ep->super.super.iface,
-                                            uct_srd_iface_t);
-    uct_srd_send_skb_t *skb;
-    ucs_queue_iter_t iter;
-
-    ucs_queue_for_each_safe(skb, iter, &iface->tx.outstanding_q, queue) {
-        if (skb->ep.ep == ep) {
-            ucs_queue_del_iter(&iface->tx.outstanding_q, iter);
-            /* TODO: should user completion callback be invoked? */
-            uct_srd_skb_release(skb, 0);
-            ep->tx.num_outstanding--;
-        }
-    }
-
-    ucs_assert_always(ep->tx.num_outstanding == 0);
 }
 
 static void uct_srd_ep_purge_flush(uct_srd_ep_t *ep)
@@ -85,8 +68,8 @@ static void uct_srd_ep_purge_flush(uct_srd_ep_t *ep)
 
 static void uct_srd_ep_purge(uct_srd_ep_t *ep, ucs_status_t status)
 {
-    uct_srd_ep_purge_outstanding(ep);
     uct_srd_ep_purge_flush(ep);
+    ep->tx.last_purge = ep->tx.send_sn;
 }
 
 static UCS_F_ALWAYS_INLINE int
@@ -872,9 +855,6 @@ void uct_srd_ep_pending_purge(uct_ep_h ep_h, uct_pending_purge_callback_t cb,
     uct_srd_enter(iface);
     ucs_arbiter_group_purge(&iface->tx.pending_q, &ep->tx.pending.group,
                             uct_srd_ep_pending_purge_cb, &args);
-    if (uct_srd_ep_ctl_op_isany(ep)) {
-        uct_srd_ep_ctl_op_schedule(iface, ep);
-    }
     uct_srd_leave(iface);
 }
 
@@ -891,6 +871,7 @@ void uct_srd_ep_disconnect(uct_ep_h tl_ep)
     uct_srd_ep_pending_purge(tl_ep, NULL, NULL);
 
     /* schedule flush */
+    /* FIXME: shouldn't this be ep_purge instead? */
     uct_srd_ep_flush(tl_ep, 0, NULL);
 
     /* the EP will be destroyed by interface destroy */

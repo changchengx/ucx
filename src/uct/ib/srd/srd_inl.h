@@ -153,7 +153,6 @@ uct_srd_post_send(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     struct ibv_send_wr *bad_wr;
     int UCS_V_UNUSED ret;
 
-    wr->wr_id            = iface->tx.send_sn;
     wr->wr.ud.remote_qpn = ep->peer_address.dest_qpn;
     wr->wr.ud.ah         = ep->peer_address.ah;
     wr->send_flags       = send_flags;
@@ -168,11 +167,12 @@ uct_srd_post_send(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
 
 static UCS_F_ALWAYS_INLINE void
 uct_srd_ep_tx_inlv(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
-                   const void *buffer, unsigned length)
+                   uct_srd_send_skb_t *skb, const void *buffer, unsigned length)
 {
     iface->tx.sge[1].addr    = (uintptr_t)buffer;
     iface->tx.sge[1].length  = length;
     iface->tx.wr_inl.num_sge = 2;
+    iface->tx.wr_inl.wr_id   = (uintptr_t)skb;
     uct_srd_post_send(iface, ep, &iface->tx.wr_inl, IBV_SEND_INLINE, 2);
 }
 
@@ -184,6 +184,7 @@ uct_srd_ep_tx_skb(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     iface->tx.sge[0].lkey   = skb->lkey;
     iface->tx.sge[0].length = skb->len;
     iface->tx.sge[0].addr   = (uintptr_t)skb->neth;
+    iface->tx.wr_skb.wr_id  = (uintptr_t)skb;
     uct_srd_post_send(iface, ep, &iface->tx.wr_skb, send_flags, max_log_sge);
 }
 
@@ -197,7 +198,6 @@ uct_srd_iface_complete_tx(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     skb->ep.ep    = ep;
     skb->ep.sn    = ep->tx.send_sn++;
     skb->sn       = iface->tx.send_sn++;
-    ucs_queue_push(&iface->tx.outstanding_q, &skb->queue);
 }
 
 static UCS_F_ALWAYS_INLINE ucs_status_t
@@ -214,9 +214,8 @@ uct_srd_am_skb_common(uct_srd_iface_t *iface, uct_srd_ep_t *ep, uint8_t id,
         return UCS_ERR_NO_RESOURCE;
     }
 
-    /* either we are executing pending operations, or there are no any pending
-     * elements, or the only pending element is for sending control messages
-     * (we don't care about reordering with respect to control messages)
+    /* either we are executing pending operations,
+     * or there are no any pending elements.
      */
     ucs_assertv((ep->flags & UCT_SRD_EP_FLAG_IN_PENDING) ||
                 !uct_srd_ep_has_pending(ep),

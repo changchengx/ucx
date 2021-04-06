@@ -103,7 +103,7 @@ enum {
  * - otherwise, there is no additional data.
  */
 typedef struct uct_srd_send_skb {
-    ucs_queue_elem_t        queue;  /* in send outstanding queue TODO: only keep comp_desc */
+    ucs_queue_elem_t        queue;  /* in ep flush queue (used for flush dummy skbs only) */
     uint16_t                sn;     /* iface sequence number */
     uint32_t                lkey;
     uint16_t                len;    /* data size */

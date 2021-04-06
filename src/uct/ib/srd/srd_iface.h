@@ -92,7 +92,7 @@ struct uct_srd_iface {
         uct_srd_send_skb_t     *skb; /* ready to use skb */
         ucs_mpool_t            mp;
         int16_t                available;
-        ucs_queue_head_t       outstanding_q;
+        int16_t                num_outstanding;
         ucs_arbiter_t          pending_q;
         struct ibv_sge         sge[UCT_IB_MAX_IOV];
         struct ibv_send_wr     wr_inl;

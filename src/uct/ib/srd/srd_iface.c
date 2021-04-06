@@ -70,7 +70,7 @@ ucs_status_t uct_srd_ep_am_short(uct_ep_h tl_ep, uint8_t id, uint64_t hdr,
     iface->tx.sge[0].length = skb->len;
     iface->tx.sge[0].addr   = (uintptr_t)skb->neth;
 
-    uct_srd_ep_tx_inlv(iface, ep, buffer, length);
+    uct_srd_ep_tx_inlv(iface, ep, skb, buffer, length);
 
     uct_srd_iface_complete_tx(iface, ep, skb);
     UCT_TL_EP_STAT_OP(&ep->super, AM, SHORT, sizeof(hdr) + length);
@@ -101,6 +101,7 @@ static ucs_status_t uct_srd_ep_am_short_iov(uct_ep_h tl_ep, uint8_t id,
 
     iface->tx.sge[0].length  = skb->len = sizeof(uct_srd_neth_t);
     iface->tx.sge[0].addr    = (uintptr_t)skb->neth;
+    iface->tx.wr_inl.wr_id   = (uintptr_t)skb;
     iface->tx.wr_inl.num_sge =
         uct_ib_verbs_sge_fill_iov(iface->tx.sge + 1, iov, iovcnt) + 1;
 
@@ -198,22 +199,18 @@ static void uct_srd_ep_send_completion(uct_srd_send_skb_t *skb)
      */
 }
 
-static void uct_srd_iface_send_completion(uct_srd_iface_t *iface, uint16_t sn)
+static void uct_srd_iface_send_completion(uct_srd_iface_t *iface,
+                                          uct_srd_send_skb_t *skb)
 {
-    uct_srd_send_skb_t *skb;
-
-    /* TODO: use a hash table for outstanding send ops */
-    ucs_queue_for_each_extract(skb, &iface->tx.outstanding_q, queue,
-                               UCS_CIRCULAR_COMPARE16(skb->sn, ==, sn)) {
-        ucs_assert(!(skb->flags & UCT_SRD_SEND_SKB_FLAG_INVALID));
-        if (ucs_unlikely(skb->flags & UCT_SRD_SEND_SKB_FLAG_COMP)) {
-            uct_invoke_completion(uct_srd_comp_desc(skb)->comp, UCS_OK);
-        }
-
-        uct_srd_ep_send_completion(skb);
-
-        uct_srd_skb_release(skb, 0);
+    ucs_assert(!(skb->flags & UCT_SRD_SEND_SKB_FLAG_INVALID));
+    if (ucs_unlikely((skb->flags & UCT_SRD_SEND_SKB_FLAG_COMP) &&
+                      skb->ep.sn >= skb->ep.ep->tx.last_purge)) {
+        uct_invoke_completion(uct_srd_comp_desc(skb)->comp, UCS_OK);
     }
+
+    uct_srd_ep_send_completion(skb);
+
+    uct_srd_skb_release(skb, 0);
 }
 
 static UCS_F_NOINLINE void
@@ -295,7 +292,7 @@ uct_srd_iface_poll_tx(uct_srd_iface_t *iface)
             continue;
         }
 
-        uct_srd_iface_send_completion(iface, wc[i].wr_id);
+        uct_srd_iface_send_completion(iface, (uct_srd_send_skb_t *)wc[i].wr_id);
     }
 
     iface->tx.available += num_wcs;
@@ -669,7 +666,7 @@ ucs_status_t uct_srd_iface_flush(uct_iface_h tl_iface, unsigned flags,
 
     uct_srd_enter(iface);
 
-    if (ucs_unlikely(!ucs_queue_is_empty(&iface->tx.outstanding_q))) {
+    if (ucs_unlikely(iface->tx.num_outstanding)) {
         UCT_TL_IFACE_STAT_FLUSH_WAIT(&iface->super.super);
         uct_srd_leave(iface);
         return UCS_INPROGRESS;
@@ -943,7 +940,6 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     }
 
     ucs_arbiter_init(&self->tx.pending_q);
-    ucs_queue_head_init(&self->tx.outstanding_q);
 
     status = UCS_STATS_NODE_ALLOC(&self->stats, &uct_srd_iface_stats_class,
                                   self->super.super.stats);
