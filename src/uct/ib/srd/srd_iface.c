@@ -190,27 +190,39 @@ uct_srd_ep_am_zcopy(uct_ep_h tl_ep, uint8_t id, const void *header,
 static void uct_srd_ep_send_completion(uct_srd_send_skb_t *skb)
 {
     uct_srd_ep_t *ep = skb->ep.ep;
-    ep->tx.num_outstanding--;
-    /* TODO: if ep does not have any outstanding send sequence numbers
-     *       less than skb->ep.sn, check the flush_q of ep to see if
-     *       any (dummy) skbs in the queue have a sequence number
-     *       that is less than or equal to skb->ep.sn. Call the user
-     *       callback of such dummy skbs.
-     */
+    uct_srd_send_skb_t *q_skb;
+    ucs_queue_iter_t iter;
+
+    ucs_assert(!(skb->flags & UCT_SRD_SEND_SKB_FLAG_INVALID));
+
+    /* If the completed skb is still in ep outstanding queue
+     * remove it from the queue and call the user callback.
+     * ep purge might have already removed the completed skb */
+    ucs_queue_for_each_safe(q_skb, iter, &ep->tx.outstanding_q, out_queue) {
+        if (q_skb == skb) {
+            if (ucs_unlikely((skb->flags & UCT_SRD_SEND_SKB_FLAG_COMP))) {
+                uct_invoke_completion(uct_srd_comp_desc(skb)->comp, UCS_OK);
+            }
+            ucs_queue_del_iter(&ep->tx.outstanding_q, iter);
+            break;
+        }
+    }
+
+    /* while queue head is flush skb, remove it and call user callback */
+    ucs_queue_for_each_extract(q_skb, &ep->tx.outstanding_q, out_queue,
+                               q_skb->flags & UCT_SRD_SEND_SKB_FLAG_FLUSH) {
+        /* outstanding flush must have completion callback. */
+        ucs_assert(!(q_skb->flags & UCT_SRD_SEND_SKB_FLAG_COMP));
+        uct_invoke_completion(uct_srd_comp_desc(q_skb)->comp, UCS_OK);
+    }
+
+    uct_srd_skb_release(skb, 0);
 }
 
 static void uct_srd_iface_send_completion(uct_srd_iface_t *iface,
                                           uct_srd_send_skb_t *skb)
 {
-    ucs_assert(!(skb->flags & UCT_SRD_SEND_SKB_FLAG_INVALID));
-    if (ucs_unlikely((skb->flags & UCT_SRD_SEND_SKB_FLAG_COMP) &&
-                      skb->ep.sn >= skb->ep.ep->tx.last_purge)) {
-        uct_invoke_completion(uct_srd_comp_desc(skb)->comp, UCS_OK);
-    }
-
     uct_srd_ep_send_completion(skb);
-
-    uct_srd_skb_release(skb, 0);
 }
 
 static UCS_F_NOINLINE void
@@ -665,12 +677,6 @@ ucs_status_t uct_srd_iface_flush(uct_iface_h tl_iface, unsigned flags,
     }
 
     uct_srd_enter(iface);
-
-    if (ucs_unlikely(iface->tx.num_outstanding)) {
-        UCT_TL_IFACE_STAT_FLUSH_WAIT(&iface->super.super);
-        uct_srd_leave(iface);
-        return UCS_INPROGRESS;
-    }
 
     count = 0;
     ucs_ptr_array_for_each(ep, i, &iface->eps) {

@@ -194,10 +194,10 @@ uct_srd_iface_complete_tx(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
 {
     iface->tx.skb = ucs_mpool_get(&iface->tx.mp);
     iface->tx.available--;
-    ep->tx.num_outstanding++;
-    skb->ep.ep    = ep;
-    skb->ep.sn    = ep->tx.send_sn++;
-    skb->sn       = iface->tx.send_sn++;
+    skb->ep.ep = ep;
+    skb->ep.sn = ep->tx.send_sn++;
+    skb->sn    = iface->tx.send_sn++;
+    ucs_queue_push(&ep->tx.outstanding_q, &skb->out_queue);
 }
 
 static UCS_F_ALWAYS_INLINE ucs_status_t

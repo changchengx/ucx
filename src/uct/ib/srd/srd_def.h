@@ -87,6 +87,7 @@ typedef struct uct_srd_neth {
 enum {
     UCT_SRD_SEND_SKB_FLAG_COMP       = UCS_BIT(0), /* This skb contains a completion */
     UCT_SRD_SEND_SKB_FLAG_ZCOPY      = UCS_BIT(1), /* This skb contains a zero-copy segment */
+    UCT_SRD_SEND_SKB_FLAG_FLUSH      = UCS_BIT(2), /* This skb is a dummy flush skb */
 
 #if UCS_ENABLE_ASSERT
     UCT_SRD_SEND_SKB_FLAG_INVALID    = UCS_BIT(7)  /* skb is released */
@@ -103,14 +104,14 @@ enum {
  * - otherwise, there is no additional data.
  */
 typedef struct uct_srd_send_skb {
-    ucs_queue_elem_t        queue;  /* in ep flush queue (used for flush dummy skbs only) */
-    uint16_t                sn;     /* iface sequence number */
+    ucs_queue_elem_t        out_queue;  /* in ep outstanding send queue */
+    uint16_t                sn;         /* iface sequence number */
     uint32_t                lkey;
-    uint16_t                len;    /* data size */
+    uint16_t                len;        /* data size */
     uint16_t                flags;
     struct {
-        uct_srd_ep_t        *ep;    /* ep that sends skb */
-        uint16_t            sn;     /* ep sequence number */
+        uct_srd_ep_t        *ep;        /* ep that sends skb */
+        uint16_t            sn;         /* ep sequence number */
     } ep;
     uct_srd_neth_t          neth[0];
 } UCS_S_PACKED UCS_V_ALIGNED(UCT_SRD_SKB_ALIGN) uct_srd_send_skb_t;

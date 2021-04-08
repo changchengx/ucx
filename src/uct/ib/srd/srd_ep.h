@@ -141,12 +141,8 @@ struct uct_srd_ep {
     uint32_t                          dest_ep_id;
     struct {
         uint16_t                      send_sn;
-        uint16_t                      last_purge; /* send_sn value when the most
-                                                     recent ep_purge was called */
-        uint16_t                      num_outstanding; /* posted sends by ep
-                                                          awaiting completion */
         uct_srd_ep_pending_op_t       pending; /* pending ops */
-        ucs_queue_head_t              flush_q; /* queue of dummy flush skbs */
+        ucs_queue_head_t              outstanding_q; /* queue of dummy flush skbs */
         UCS_STATS_NODE_DECLARE(stats)
         UCT_SRD_EP_HOOK_DECLARE(tx_hook)
     } tx;

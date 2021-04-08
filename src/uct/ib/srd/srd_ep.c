@@ -46,30 +46,14 @@ static void uct_srd_peer_copy(uct_srd_peer_name_t *dst,
 static void uct_srd_ep_reset(uct_srd_ep_t *ep)
 {
     ep->tx.send_sn         = 0;
-    ep->tx.last_purge      = 0;
-    ep->tx.num_outstanding = 0;
     ep->tx.pending.ops     = UCT_SRD_EP_OP_NONE;
     ep->rx_creq_count      = 0;
-}
-
-static void uct_srd_ep_purge_flush(uct_srd_ep_t *ep)
-{
-    uct_srd_send_skb_t *skb;
-    ucs_queue_iter_t iter;
-
-    ucs_queue_for_each_safe(skb, iter, &ep->tx.flush_q, queue) {
-        ucs_queue_del_iter(&ep->tx.flush_q, iter);
-        /* TODO: should user completion callback be invoked? */
-        uct_srd_skb_release(skb, 0);
-    }
-
-    ucs_assert(ucs_queue_is_empty(&ep->tx.flush_q));
+    ucs_queue_head_init(&ep->tx.outstanding_q);
 }
 
 static void uct_srd_ep_purge(uct_srd_ep_t *ep, ucs_status_t status)
 {
-    uct_srd_ep_purge_flush(ep);
-    ep->tx.last_purge = ep->tx.send_sn;
+    while (ucs_queue_pull(&ep->tx.outstanding_q));
 }
 
 static UCS_F_ALWAYS_INLINE int
@@ -495,7 +479,7 @@ ucs_status_t uct_srd_ep_flush_nolock(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     if (ucs_unlikely(!uct_srd_ep_is_connected(ep))) {
         /* check for CREQ either being scheduled or sent and waiting for CREP ack */
         if (uct_srd_ep_ctl_op_check(ep, UCT_SRD_EP_OP_CREQ) ||
-            ep->tx.num_outstanding > 0) {
+            !ucs_queue_is_empty(&ep->tx.outstanding_q)) {
 
             return UCS_ERR_NO_RESOURCE; /* connection in progress */
         }
@@ -510,7 +494,7 @@ ucs_status_t uct_srd_ep_flush_nolock(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
         return UCS_ERR_NO_RESOURCE;
     }
 
-    if (!ep->tx.num_outstanding) {
+    if (ucs_queue_is_empty(&ep->tx.outstanding_q)) {
         /* No outstanding operations */
         return UCS_OK;
     }
@@ -528,14 +512,15 @@ ucs_status_t uct_srd_ep_flush_nolock(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
         }
 
         /* Add dummy skb to the flush queue */
-        skb->flags                  = UCT_SRD_SEND_SKB_FLAG_COMP;
+        skb->flags                  = UCT_SRD_SEND_SKB_FLAG_COMP |
+                                      UCT_SRD_SEND_SKB_FLAG_FLUSH;
         skb->len                    = sizeof(skb->neth[0]);
         skb->neth->packet_type      = 0;
         skb->ep.sn                  = ep->tx.send_sn - 1;
         uct_srd_neth_set_dest_id(skb->neth, UCT_SRD_EP_NULL_ID);
         uct_srd_comp_desc(skb)->comp = comp;
 
-        ucs_queue_push(&ep->tx.flush_q, &skb->queue);
+        ucs_queue_push(&ep->tx.outstanding_q, &skb->out_queue);
 
         ucs_trace_data("added dummy flush skb %p sn %d user_comp %p",
                        skb, skb->sn, comp);
@@ -909,7 +894,6 @@ static UCS_CLASS_INIT_FUNC(uct_srd_ep_t, const uct_ep_params_t* params)
     uct_srd_iface_add_ep(iface, self);
     ucs_arbiter_group_init(&self->tx.pending.group);
     ucs_arbiter_elem_init(&self->tx.pending.elem);
-    ucs_queue_head_init(&self->tx.flush_q);
 
     UCT_SRD_EP_HOOK_INIT(self);
     ucs_debug("created ep ep=%p iface=%p id=%d", self, iface, self->ep_id);
