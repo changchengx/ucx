@@ -96,7 +96,6 @@ struct uct_srd_iface {
         struct ibv_sge         sge[UCT_IB_MAX_IOV];
         struct ibv_send_wr     wr_inl;
         struct ibv_send_wr     wr_skb;
-        uint16_t               send_sn;
     } tx;
     struct {
         unsigned             tx_qp_len;

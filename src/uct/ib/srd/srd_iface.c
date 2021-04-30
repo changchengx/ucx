@@ -970,7 +970,6 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     self->tx.wr_skb.sg_list           = self->tx.sge;
     self->tx.wr_skb.num_sge           = 1;
 
-    self->tx.send_sn                  = 0;
     self->tx.skb                      = NULL;
     self->super.config.sl             = uct_ib_iface_config_select_sl(&config->super);
 

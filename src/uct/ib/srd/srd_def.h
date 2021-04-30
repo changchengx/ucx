@@ -113,7 +113,6 @@ enum {
  */
 typedef struct uct_srd_send_skb {
     ucs_queue_elem_t        out_queue;  /* in ep outstanding send queue */
-    uint16_t                sn;         /* iface sequence number */
     uint32_t                lkey;
     uint16_t                len;        /* data size */
     uint16_t                flags;

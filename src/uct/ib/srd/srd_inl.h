@@ -199,7 +199,6 @@ uct_srd_iface_complete_tx(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     iface->tx.available--;
     ep->tx.psn++;
     skb->ep = ep;
-    skb->sn = iface->tx.send_sn++;
     ucs_queue_push(&ep->tx.outstanding_q, &skb->out_queue);
 }
 
