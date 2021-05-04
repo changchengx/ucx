@@ -89,13 +89,13 @@ struct uct_srd_iface {
         UCT_SRD_IFACE_HOOK_DECLARE(hook)
     } rx;
     struct {
-        uct_srd_send_skb_t     *skb; /* ready to use skb */
-        ucs_mpool_t            mp;
-        int16_t                available;
-        ucs_arbiter_t          pending_q;
-        struct ibv_sge         sge[UCT_IB_MAX_IOV];
-        struct ibv_send_wr     wr_inl;
-        struct ibv_send_wr     wr_skb;
+        uct_srd_send_skb_t   *skb; /* ready to use skb */
+        ucs_mpool_t          mp;
+        int16_t              available;
+        ucs_arbiter_t        pending_q;
+        struct ibv_sge       sge[UCT_IB_MAX_IOV];
+        struct ibv_send_wr   wr_inl;
+        struct ibv_send_wr   wr_skb;
     } tx;
     struct {
         unsigned             tx_qp_len;
@@ -107,25 +107,25 @@ struct uct_srd_iface {
 
     ucs_conn_match_ctx_t  conn_match_ctx;
 
-    ucs_ptr_array_t       eps;
+    ucs_ptr_array_t          eps;
 };
 
 
 struct uct_srd_ctl_hdr {
-    uint8_t                     type;
-    uint8_t                     reserved[3];
+    uint8_t                         type;
+    uint8_t                         reserved[3];
     union {
         struct {
-            uct_srd_ep_addr_t    ep_addr;
-            uct_srd_ep_conn_sn_t conn_sn;
-            uint8_t             path_index;
+            uct_srd_ep_addr_t       ep_addr;
+            uct_srd_ep_conn_sn_t    conn_sn;
+            uint8_t                 path_index;
         } conn_req;
         struct {
-            uint32_t            src_ep_id;
+            uint32_t                src_ep_id;
         } conn_rep;
-        uint32_t                data;
+        uint32_t                    data;
     };
-    uct_srd_peer_name_t          peer;
+    uct_srd_peer_name_t             peer;
     /* For CREQ packet, IB address follows */
 } UCS_S_PACKED;
 
@@ -154,44 +154,7 @@ void uct_srd_dump_packet(uct_base_iface_t *iface, uct_am_trace_type_t type,
 
 uct_srd_send_skb_t *uct_srd_iface_ctl_skb_get(uct_srd_iface_t *iface);
 
-/*
-management of connecting endpoints (cep)
-
-Such endpoint are created either by explicitely calling ep_create_connected()
-or implicitely as a result of SRD connection protocol. Calling
-ep_create_connected() may reuse already existing endpoint that was implicitely
-created.
-
-SRD connection protocol
-
-The protocol allows connection establishment in environment where SRD packets
-can be reordered. The connection is done as 3 way handshake:
-
-1: CREQ (src_if_addr, src_ep_addr, conn_sn)
-Connection request. It includes source interface address, source ep address
-and connection id.
-
-Connection id is essentially a counter of endpoints that are created by
-ep_create_connected(). The counter is per destination interface. Purpose of
-conn_sn is to ensure order between multiple CREQ packets and to handle
-simultanuous connection establishment. The case when both sides call
-ep_create_connected(). The rule is that connected endpoints must have
-same conn_sn.
-
-2: CREP (dest_ep_id)
-
-Connection reply. It includes id of destination endpoint.
-
-Endpoint may be created upon reception of CREQ. It is possible that the
-endpoint already exists because of simultaneous connection. In this case,
-endpoint connection id must be equal to connection id in CREQ.
-
-
-Implicit endpoints reuse
-
-Endpoints created upon receive of CREP request can be re-used when
-application calls ep_create_connected(). */
-
+/* management of connecting endpoints (cep) is similar to UD */
 void uct_srd_iface_cep_cleanup(uct_srd_iface_t *iface);
 
 uct_srd_ep_conn_sn_t
@@ -260,6 +223,7 @@ uct_srd_iface_progress_pending(uct_srd_iface_t *iface)
 }
 
 
+/* TODO: shouldn't we compare the length with seg_size instead of MTU? */
 #if ENABLE_PARAMS_CHECK
 #define UCT_SRD_CHECK_LENGTH(iface, header_len, payload_len, msg) \
      do { \
@@ -269,15 +233,15 @@ uct_srd_iface_progress_pending(uct_srd_iface_t *iface)
                           0, mtu, msg); \
      } while(0);
 
-#define UCT_SRD_CHECK_BCOPY_LENGTH(iface, len) \
+#define UCT_SRD_CHECK_AM_BCOPY_LENGTH(iface, len) \
     UCT_SRD_CHECK_LENGTH(iface, 0, len, "am_bcopy")
 
-#define UCT_SRD_CHECK_ZCOPY_LENGTH(iface, header_len, payload_len) \
+#define UCT_SRD_CHECK_AM_ZCOPY_LENGTH(iface, header_len, payload_len) \
     UCT_SRD_CHECK_LENGTH(iface, header_len, payload_len, "am_zcopy payload")
 
 #else
-#define UCT_SRD_CHECK_ZCOPY_LENGTH(iface, header_len, payload_len)
-#define UCT_SRD_CHECK_BCOPY_LENGTH(iface, len)
+#define UCT_SRD_CHECK_AM_BCOPY_LENGTH(iface, len)
+#define UCT_SRD_CHECK_AM_ZCOPY_LENGTH(iface, header_len, payload_len)
 #endif
 
 END_C_DECLS

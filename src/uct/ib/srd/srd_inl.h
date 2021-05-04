@@ -4,6 +4,8 @@
  * See file LICENSE for terms.
  */
 
+#include "srd_def.h"
+
 #include <uct/ib/base/ib_log.h>
 
 
@@ -152,7 +154,7 @@ uct_srd_post_send(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
                   unsigned max_log_sge)
 {
     struct ibv_send_wr *bad_wr;
-    int UCS_V_UNUSED ret;
+    int ret;
 
     wr->wr.ud.remote_qpn = ep->peer_address.dest_qpn;
     wr->wr.ud.ah         = ep->peer_address.ah;
@@ -160,7 +162,9 @@ uct_srd_post_send(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
 
     UCT_SRD_EP_HOOK_CALL_TX(&ep->super, (uct_srd_neth_t*)iface->tx.sge[0].addr);
     ret = ibv_post_send(iface->qp, wr, &bad_wr);
-    ucs_assertv(ret == 0, "ibv_post_send() returned %d (%m)", ret);
+    if (ret != 0) {
+        ucs_fatal("ibv_post_send() returned %d (%m)", ret);
+    }
 
     uct_ib_log_post_send(&iface->super, iface->qp, wr, max_log_sge,
                          uct_srd_dump_packet);
@@ -200,6 +204,20 @@ uct_srd_iface_complete_tx(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     ep->tx.psn++;
     skb->ep = ep;
     ucs_queue_push(&ep->tx.outstanding_q, &skb->out_queue);
+}
+
+static UCS_F_ALWAYS_INLINE void
+uct_srd_neth_set_type_am(uct_srd_ep_t *ep, uct_srd_neth_t *neth, uint8_t id)
+{
+    neth->packet_type = (id << UCT_SRD_PACKET_AM_ID_SHIFT) |
+                        ep->dest_ep_id |
+                        UCT_SRD_PACKET_FLAG_AM;
+}
+
+static UCS_F_ALWAYS_INLINE void
+uct_srd_neth_init_data(uct_srd_ep_t *ep, uct_srd_neth_t *neth)
+{
+    neth->psn = ep->tx.psn;
 }
 
 static UCS_F_ALWAYS_INLINE ucs_status_t

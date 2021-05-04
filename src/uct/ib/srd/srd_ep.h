@@ -229,20 +229,6 @@ void uct_srd_ep_clone(uct_srd_ep_t *old_ep, uct_srd_ep_t *new_ep);
 
 void *uct_srd_ep_get_peer_address(uct_srd_ep_t *srd_ep);
 
-static UCS_F_ALWAYS_INLINE void
-uct_srd_neth_set_type_am(uct_srd_ep_t *ep, uct_srd_neth_t *neth, uint8_t id)
-{
-    neth->packet_type = (id << UCT_SRD_PACKET_AM_ID_SHIFT) |
-                        ep->dest_ep_id |
-                        UCT_SRD_PACKET_FLAG_AM;
-}
-
-static UCS_F_ALWAYS_INLINE void
-uct_srd_neth_init_data(uct_srd_ep_t *ep, uct_srd_neth_t *neth)
-{
-    neth->psn = ep->tx.psn;
-}
-
 void uct_srd_ep_process_rx(uct_srd_iface_t *iface,
                            uct_srd_neth_t *neth, unsigned byte_len,
                            uct_srd_recv_skb_t *skb);

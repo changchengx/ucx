@@ -48,7 +48,6 @@ enum {
 /*
 network header layout
 
-P - put emulation (will be disabled in the future)
 C - control packet extended header
 
 Active message packet header

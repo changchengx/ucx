@@ -86,7 +86,7 @@ static ucs_status_t uct_srd_ep_am_short_iov(uct_ep_h tl_ep, uint8_t id,
     uct_srd_send_skb_t *skb;
     ucs_status_t status;
 
-    UCT_CHECK_IOV_SIZE(iovcnt, (size_t)iface->config.max_send_sge,
+    UCT_CHECK_IOV_SIZE(iovcnt, iface->config.max_send_sge,
                        "uct_srd_ep_am_short_iov");
     UCT_CHECK_LENGTH(sizeof(uct_srd_neth_t) + uct_iov_total_length(iov, iovcnt), 0,
                      iface->config.max_inline, "am_short");
@@ -120,7 +120,7 @@ static ssize_t uct_srd_ep_am_bcopy(uct_ep_h tl_ep, uint8_t id,
                                    uct_pack_callback_t pack_cb, void *arg,
                                    unsigned flags)
 {
-    uct_srd_ep_t *ep = ucs_derived_of(tl_ep, uct_srd_ep_t);
+    uct_srd_ep_t *ep       = ucs_derived_of(tl_ep, uct_srd_ep_t);
     uct_srd_iface_t *iface = ucs_derived_of(tl_ep->iface, uct_srd_iface_t);
     uct_srd_send_skb_t *skb;
     ucs_status_t status;
@@ -135,7 +135,7 @@ static ssize_t uct_srd_ep_am_bcopy(uct_ep_h tl_ep, uint8_t id,
     }
 
     length = uct_srd_skb_bcopy(skb, pack_cb, arg);
-    UCT_SRD_CHECK_BCOPY_LENGTH(iface, length);
+    UCT_SRD_CHECK_AM_BCOPY_LENGTH(iface, length);
 
     ucs_assert(iface->tx.wr_skb.num_sge == 1);
     uct_srd_ep_tx_skb(iface, ep, skb, 0, INT_MAX);
@@ -150,19 +150,20 @@ uct_srd_ep_am_zcopy(uct_ep_h tl_ep, uint8_t id, const void *header,
                     unsigned header_length, const uct_iov_t *iov,
                     size_t iovcnt, unsigned flags, uct_completion_t *comp)
 {
-    uct_srd_ep_t *ep = ucs_derived_of(tl_ep, uct_srd_ep_t);
+    uct_srd_ep_t *ep       = ucs_derived_of(tl_ep, uct_srd_ep_t);
     uct_srd_iface_t *iface = ucs_derived_of(tl_ep->iface, uct_srd_iface_t);
     uct_srd_send_skb_t *skb;
     ucs_status_t status;
 
-    UCT_CHECK_IOV_SIZE(iovcnt, (size_t)iface->config.max_send_sge,
+    UCT_CHECK_IOV_SIZE(iovcnt, iface->config.max_send_sge,
                        "uct_srd_ep_am_zcopy");
 
+    /* TODO: why is this check needed? */
     UCT_CHECK_LENGTH(sizeof(uct_srd_neth_t) + sizeof(uct_srd_zcopy_desc_t) + header_length,
                      0, iface->super.config.seg_size, "am_zcopy header");
 
-    UCT_SRD_CHECK_ZCOPY_LENGTH(iface, header_length,
-                               uct_iov_total_length(iov, iovcnt));
+    UCT_SRD_CHECK_AM_ZCOPY_LENGTH(iface, header_length,
+                                  uct_iov_total_length(iov, iovcnt));
 
     uct_srd_enter(iface);
 
@@ -782,30 +783,32 @@ uct_srd_iface_query(uct_iface_h tl_iface, uct_iface_attr_t *iface_attr)
         return status;
     }
 
-    iface_attr->cap.flags              = UCT_IFACE_FLAG_AM_BCOPY         |
-                                         UCT_IFACE_FLAG_AM_ZCOPY         |
-                                         UCT_IFACE_FLAG_CONNECT_TO_EP    |
-                                         UCT_IFACE_FLAG_CONNECT_TO_IFACE |
-                                         UCT_IFACE_FLAG_PENDING          |
-                                         UCT_IFACE_FLAG_EP_CHECK         |
-                                         UCT_IFACE_FLAG_CB_SYNC          |
-                                         UCT_IFACE_FLAG_ERRHANDLE_PEER_FAILURE;
+    iface_attr->cap.flags      = UCT_IFACE_FLAG_AM_BCOPY         |
+                                 UCT_IFACE_FLAG_AM_ZCOPY         |
+                                 UCT_IFACE_FLAG_CONNECT_TO_EP    |
+                                 UCT_IFACE_FLAG_CONNECT_TO_IFACE |
+                                 UCT_IFACE_FLAG_PENDING          |
+                                 UCT_IFACE_FLAG_EP_CHECK         |
+                                 UCT_IFACE_FLAG_CB_SYNC          |
+                                 UCT_IFACE_FLAG_ERRHANDLE_PEER_FAILURE;
 
-    iface_attr->cap.am.max_short       = uct_ib_iface_hdr_size(iface->config.max_inline,
-                                                               sizeof(uct_srd_neth_t));
-    iface_attr->cap.am.max_bcopy       = iface->super.config.seg_size - sizeof(uct_srd_neth_t);
-    iface_attr->cap.am.min_zcopy       = 0;
-    iface_attr->cap.am.max_zcopy       = iface->super.config.seg_size - sizeof(uct_srd_neth_t);
-    iface_attr->cap.am.align_mtu       = uct_ib_mtu_value(uct_ib_iface_port_attr(&iface->super)->active_mtu);
-    iface_attr->cap.am.opt_zcopy_align = UCS_SYS_PCI_MAX_PAYLOAD;
-    iface_attr->cap.am.max_iov         = iface->config.max_send_sge;
-    iface_attr->cap.am.max_hdr         = uct_ib_iface_hdr_size(iface->super.config.seg_size,
-                                                               sizeof(uct_srd_neth_t) +
-                                                               sizeof(uct_srd_zcopy_desc_t));
+    iface_attr->iface_addr_len = sizeof(uct_srd_iface_addr_t);
+    iface_attr->ep_addr_len    = sizeof(uct_srd_ep_addr_t);
+    iface_attr->max_conn_priv  = 0;
 
-    iface_attr->iface_addr_len         = sizeof(uct_srd_iface_addr_t);
-    iface_attr->ep_addr_len            = sizeof(uct_srd_ep_addr_t);
-    iface_attr->max_conn_priv          = 0;
+
+    iface_attr->cap.am.align_mtu        = uct_ib_mtu_value(iface->super.config.path_mtu);
+    iface_attr->cap.am.opt_zcopy_align  = UCS_SYS_PCI_MAX_PAYLOAD;
+
+    iface_attr->cap.am.max_short = uct_ib_iface_hdr_size(iface->config.max_inline,
+                                                         sizeof(uct_srd_neth_t));
+    iface_attr->cap.am.max_bcopy = iface->super.config.seg_size - sizeof(uct_srd_neth_t);
+    iface_attr->cap.am.min_zcopy = 0;
+    iface_attr->cap.am.max_zcopy = iface->super.config.seg_size - sizeof(uct_srd_neth_t);
+    iface_attr->cap.am.max_iov   = iface->config.max_send_sge;
+    iface_attr->cap.am.max_hdr   = uct_ib_iface_hdr_size(iface->super.config.seg_size,
+                                                         sizeof(uct_srd_neth_t) +
+                                                         sizeof(uct_srd_zcopy_desc_t));
 
     if (iface_attr->cap.am.max_short) {
         iface_attr->cap.flags |= UCT_IFACE_FLAG_AM_SHORT;
@@ -867,8 +870,9 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     size_t data_size;
     int mtu;
 
-    uct_srd_iface_config_t *config      = ucs_derived_of(tl_config,
-                                                         uct_srd_iface_config_t);
+    uct_srd_iface_config_t *config = ucs_derived_of(tl_config,
+                                                    uct_srd_iface_config_t);
+
     uct_ib_iface_init_attr_t init_attr  = {};
     ucs_conn_match_ops_t conn_match_ops = {
         .get_address = uct_srd_ep_get_conn_address,
@@ -910,7 +914,6 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     self->super.release_desc.cb = uct_srd_iface_release_desc;
 
     UCT_SRD_IFACE_HOOK_INIT(self);
-
     status = uct_srd_iface_create_qp(self, config);
     if (status != UCS_OK) {
         return UCS_ERR_INVALID_PARAM;
