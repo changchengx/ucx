@@ -913,7 +913,6 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     /* Redefine receive desc release callback */
     self->super.release_desc.cb = uct_srd_iface_release_desc;
 
-    UCT_SRD_IFACE_HOOK_INIT(self);
     status = uct_srd_iface_create_qp(self, config);
     if (status != UCS_OK) {
         return UCS_ERR_INVALID_PARAM;

@@ -43,42 +43,6 @@ typedef struct uct_srd_iface_config {
 } uct_srd_iface_config_t;
 
 
-#if UCT_SRD_EP_DEBUG_HOOKS
-
-typedef ucs_status_t (*uct_srd_iface_hook_t)(uct_srd_iface_t *iface, uct_srd_neth_t *neth);
-
-
-#define UCT_SRD_IFACE_HOOK_DECLARE(_name) \
-    uct_srd_iface_hook_t _name;
-
-
-#define UCT_SRD_IFACE_HOOK_CALL_RX(_iface, _neth, _len) \
-    if ((_iface)->rx.hook(_iface, _neth) != UCS_OK) { \
-        ucs_trace_data("RX: dropping packet"); \
-        return; \
-    }
-
-
-#define UCT_SRD_IFACE_HOOK_INIT(_iface) { \
-        (_iface)->rx.hook = uct_srd_iface_null_hook; \
-    }
-
-
-static inline ucs_status_t uct_srd_iface_null_hook(uct_srd_iface_t *iface,
-                                                  uct_srd_neth_t *neth)
-{
-    return UCS_OK;
-}
-
-#else
-
-#define UCT_SRD_IFACE_HOOK_DECLARE(_name)
-#define UCT_SRD_IFACE_HOOK_CALL_RX(_iface, _neth, _len)
-#define UCT_SRD_IFACE_HOOK_INIT(_iface)
-
-#endif
-
-
 struct uct_srd_iface {
     uct_ib_iface_t           super;
     struct ibv_qp            *qp;
@@ -86,7 +50,6 @@ struct uct_srd_iface {
         ucs_mpool_t          mp;
         unsigned             available;
         unsigned             quota;
-        UCT_SRD_IFACE_HOOK_DECLARE(hook)
     } rx;
     struct {
         uct_srd_send_skb_t   *skb; /* ready to use skb */

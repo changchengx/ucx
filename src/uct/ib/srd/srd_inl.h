@@ -160,7 +160,6 @@ uct_srd_post_send(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     wr->wr.ud.ah         = ep->peer_address.ah;
     wr->send_flags       = send_flags;
 
-    UCT_SRD_EP_HOOK_CALL_TX(&ep->super, (uct_srd_neth_t*)iface->tx.sge[0].addr);
     ret = ibv_post_send(iface->qp, wr, &bad_wr);
     if (ret != 0) {
         ucs_fatal("ibv_post_send() returned %d (%m)", ret);

@@ -22,60 +22,6 @@
 
 typedef uint32_t uct_srd_ep_conn_sn_t;
 
-#if UCT_SRD_EP_DEBUG_HOOKS
-/*
-   Hooks that allow packet header inspection and rewriting. UCT user can
-   set functions that will be called just before packet is put on wire
-   and when packet is received. Packet will be discarded if RX function
-   returns status different from UCS_OK.
-
-   Example:
-
-  static ucs_status_t clear_ack_req(uct_srd_ep_t *ep, uct_srd_neth_t *neth)
-  {
-     neth->packet_type &= ~UCT_SRD_PACKET_FLAG_ACK_REQ;
-     return UCS_OK;
-  }
-
-  uct_ep_t ep;
-  ....
-  // clear ack request bin on all outgoing packets
-  ucs_derived_of(ep, uct_srd_ep_t)->tx.tx_hook = clear_ack_req;
-
-*/
-
-typedef ucs_status_t (*uct_srd_ep_hook_t)(uct_srd_ep_t *ep, uct_srd_neth_t *neth);
-
-#define UCT_SRD_EP_HOOK_DECLARE(name) uct_srd_ep_hook_t name;
-
-#define UCT_SRD_EP_HOOK_CALL_RX(ep, neth, len) \
-    if ((ep)->rx.rx_hook(ep, neth) != UCS_OK) { \
-        ucs_trace_data("RX: dropping packet"); \
-        return; \
-    }
-
-#define UCT_SRD_EP_HOOK_CALL_TX(ep, neth) (ep)->tx.tx_hook(ep, neth);
-
-static inline ucs_status_t uct_srd_ep_null_hook(uct_srd_ep_t *ep, uct_srd_neth_t *neth)
-{
-    return UCS_OK;
-}
-
-#define UCT_SRD_EP_HOOK_INIT(ep) \
-do { \
-   (ep)->tx.tx_hook = uct_srd_ep_null_hook; \
-   (ep)->rx.rx_hook = uct_srd_ep_null_hook; \
-} while(0);
-
-#else
-
-#define UCT_SRD_EP_HOOK_DECLARE(name)
-#define UCT_SRD_EP_HOOK_CALL_RX(ep, neth, len)
-#define UCT_SRD_EP_HOOK_CALL_TX(ep, neth)
-#define UCT_SRD_EP_HOOK_INIT(ep)
-
-#endif
-
 
 /*
  * Endpoint pending control operations. The operations
@@ -145,13 +91,11 @@ struct uct_srd_ep {
         uct_srd_ep_pending_op_t       pending; /* pending ops */
         ucs_queue_head_t              outstanding_q; /* queue of dummy flush skbs */
         UCS_STATS_NODE_DECLARE(stats)
-        UCT_SRD_EP_HOOK_DECLARE(tx_hook)
     } tx;
     struct {
         ucs_frag_list_t               ooo_pkts; /* Out of order packets that
                                                    can not be processed yet */
         UCS_STATS_NODE_DECLARE(stats)
-        UCT_SRD_EP_HOOK_DECLARE(rx_hook)
     } rx;
     ucs_conn_match_elem_t             conn_match;
     /* connection sequence number. assigned in connect_to_iface() */

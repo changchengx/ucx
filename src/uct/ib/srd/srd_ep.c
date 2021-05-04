@@ -359,7 +359,6 @@ static uct_srd_ep_t *uct_srd_ep_rx_creq(uct_srd_iface_t *iface,
                        ep->tx.pending.ops, ep->rx_creq_count);
 
     /* schedule connection reply op */
-    UCT_SRD_EP_HOOK_CALL_RX(ep, neth, sizeof(*neth) + sizeof(*ctl));
     if (uct_srd_ep_ctl_op_check(ep, UCT_SRD_EP_OP_CREQ)) {
         uct_srd_ep_set_state(ep, UCT_SRD_EP_FLAG_CREQ_NOTSENT);
     }
@@ -470,8 +469,6 @@ void uct_srd_ep_process_rx(uct_srd_iface_t *iface, uct_srd_neth_t *neth,
 
     ucs_trace_func("");
 
-    UCT_SRD_IFACE_HOOK_CALL_RX(iface, neth, byte_len);
-
     dest_id = uct_srd_neth_get_dest_id(neth);
     is_am   = neth->packet_type & UCT_SRD_PACKET_FLAG_AM;
 
@@ -497,7 +494,6 @@ void uct_srd_ep_process_rx(uct_srd_iface_t *iface, uct_srd_neth_t *neth,
     }
 
     ucs_assert(ep->ep_id != UCT_SRD_EP_NULL_ID);
-    UCT_SRD_EP_HOOK_CALL_RX(ep, neth, byte_len);
 
     if (ucs_likely(is_am)) {
         skb->am.len = byte_len - sizeof(*neth);
@@ -961,7 +957,6 @@ static UCS_CLASS_INIT_FUNC(uct_srd_ep_t, const uct_ep_params_t* params)
     ucs_arbiter_group_init(&self->tx.pending.group);
     ucs_arbiter_elem_init(&self->tx.pending.elem);
 
-    UCT_SRD_EP_HOOK_INIT(self);
     ucs_debug("created ep ep=%p iface=%p id=%d", self, iface, self->ep_id);
 
     uct_srd_leave(iface);
