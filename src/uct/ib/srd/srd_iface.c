@@ -1049,9 +1049,14 @@ static ucs_status_t
 uct_srd_query_tl_devices(uct_md_h md, uct_tl_device_resource_t **tl_devices_p,
                          unsigned *num_tl_devices_p)
 {
-    uct_ib_md_t *ib_md = ucs_derived_of(md, uct_ib_md_t);
-    int flags          = UCT_IB_DEVICE_FLAG_EFA | UCT_IB_DEVICE_FLAG_SRD;
-    return uct_ib_device_query_ports(&ib_md->dev, flags, tl_devices_p,
+    uct_ib_md_t *ib_md      = ucs_derived_of(md, uct_ib_md_t);
+    struct ibv_context *ctx = ib_md->dev.ibv_context;
+
+    if (!uct_ib_efadv_check(ctx->device)) {
+        return UCS_ERR_UNSUPPORTED;
+    }
+
+    return uct_ib_device_query_ports(&ib_md->dev, 0, tl_devices_p,
                                      num_tl_devices_p);
 }
 
