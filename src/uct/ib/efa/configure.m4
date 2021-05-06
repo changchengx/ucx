@@ -8,7 +8,9 @@ AS_IF([test "x$with_efa_dv" != xno],
                    [with_efa_dv=no], [-libverbs])])
 
 AS_IF([test "x$with_efa_dv" != xno],
-     [AC_CHECK_DECLS([EFADV_DEVICE_ATTR_CAPS_RDMA_READ],
+     [AC_CHECK_DECLS([IBV_QP_INIT_ATTR_SEND_OPS_FLAGS,
+                      EFADV_DEVICE_ATTR_CAPS_RDMA_READ,
+                      efadv_create_qp_ex],
                      [AC_DEFINE([HAVE_DECL_EFA_DV_RDMA_READ], [1], [HAVE EFA device with RDMA READ support])],
                      [], [[#include <infiniband/efadv.h>]])])
 

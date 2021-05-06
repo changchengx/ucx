@@ -189,6 +189,77 @@ uct_srd_ep_am_zcopy(uct_ep_h tl_ep, uint8_t id, const void *header,
     return UCS_INPROGRESS;
 }
 
+#ifdef HAVE_DECL_EFA_DV_RDMA_READ
+static inline ucs_status_t
+uct_srd_ep_rdma_zcopy(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
+                      const uct_iov_t *iov, size_t iovcnt,
+                      size_t iov_total_length, uint64_t remote_addr,
+                      uct_rkey_t rkey, uct_completion_t *comp)
+{
+    struct ibv_qp_ex *qp_ex = iface->qp_ex;
+    struct ibv_sge sge[UCT_IB_MAX_IOV];
+    size_t sge_cnt;
+    uct_srd_send_skb_t *skb;
+    ucs_status_t status;
+
+    ucs_assertv(iovcnt <= ucs_min(UCT_IB_MAX_IOV, iface->config.max_send_sge),
+                "iovcnt %zu, maxcnt (%zu, %zu)",
+                iovcnt, UCT_IB_MAX_IOV, iface->config.max_send_sge);
+
+    sge_cnt = uct_ib_verbs_sge_fill_iov(sge, iov, iovcnt);
+    /* cppcheck-suppress syntaxError */
+    UCT_SKIP_ZERO_LENGTH(sge_cnt);
+
+    status = uct_srd_rdma_skb_common(iface, ep, &skb);
+    if (status != UCS_OK) {
+        return status;
+    }
+    skb->len = sizeof(uct_srd_neth_t);
+
+    ibv_wr_start(qp_ex);
+    qp_ex->wr_id = (uintptr_t)skb;
+    ibv_wr_rdma_read(qp_ex, rkey, remote_addr);
+    ibv_wr_set_sge_list(qp_ex, sge_cnt, sge);
+    ibv_wr_set_ud_addr(qp_ex, ep->peer_address.ah,
+                       ep->peer_address.dest_qpn, UCT_IB_KEY);
+    if (ibv_wr_complete(qp_ex)) {
+        ucs_fatal("ibv_wr_complete failed %m");
+        return UCS_ERR_IO_ERROR;
+    }
+
+    uct_srd_skb_set_comp_desc(skb, comp);
+    uct_srd_iface_complete_tx(iface, ep, skb);
+
+    return UCS_INPROGRESS;
+}
+
+static ucs_status_t
+uct_srd_ep_get_zcopy(uct_ep_h tl_ep, const uct_iov_t *iov,
+                     size_t iovcnt, uint64_t remote_addr,
+                     uct_rkey_t rkey, uct_completion_t *comp)
+{
+    uct_srd_ep_t *ep       = ucs_derived_of(tl_ep, uct_srd_ep_t);
+    uct_srd_iface_t *iface = ucs_derived_of(tl_ep->iface, uct_srd_iface_t);
+    size_t total_length    = uct_iov_total_length(iov, iovcnt);
+    ucs_status_t status;
+
+    UCT_CHECK_IOV_SIZE(iovcnt, iface->config.max_send_sge,
+                       "uct_srd_ep_get_zcopy");
+
+    UCT_CHECK_LENGTH(total_length,
+                     iface->super.config.max_inl_cqe[UCT_IB_DIR_TX] + 1,
+                     iface->config.max_get_zcopy, "get_zcopy");
+
+
+    status = uct_srd_ep_rdma_zcopy(iface, ep, iov, iovcnt, total_length,
+                                   remote_addr, uct_ib_md_direct_rkey(rkey), comp);
+    if (!UCS_STATUS_IS_ERR(status)) {
+        UCT_TL_EP_STAT_OP(&ep->super, GET, ZCOPY, total_length);
+    }
+    return status;
+}
+#endif /* HAVE_DECL_EFA_DV_RDMA_READ */
+
 static void uct_srd_ep_send_completion(uct_srd_send_skb_t *skb)
 {
     uct_srd_send_skb_t *q_skb;
@@ -532,11 +603,16 @@ uct_srd_iface_create_qp(uct_srd_iface_t *iface,
     uct_ib_efadv_md_t *efadv_md =
         ucs_derived_of(uct_ib_iface_md(&iface->super), uct_ib_efadv_md_t);
     const uct_ib_efadv_t *efadv = &efadv_md->efadv;
-    struct ibv_qp_init_attr qp_init_attr;
+    struct ibv_pd *pd           = efadv_md->super.pd;
     struct ibv_qp_attr qp_attr;
     int ret;
 
-	memset(&qp_init_attr, 0, sizeof(qp_init_attr));
+#ifdef HAVE_DECL_EFA_DV_RDMA_READ
+    struct efadv_qp_init_attr  efa_qp_init_attr  = { 0 };
+    struct ibv_qp_init_attr_ex qp_init_attr      = { 0 };
+#else
+    struct ibv_qp_init_attr    qp_init_attr      = { 0 };
+#endif
 
     qp_init_attr.qp_type             = IBV_QPT_DRIVER;
     qp_init_attr.sq_sig_all          = 1;
@@ -552,8 +628,24 @@ uct_srd_iface_create_qp(uct_srd_iface_t *iface,
     qp_init_attr.cap.max_inline_data = ucs_min(config->super.tx.min_inline,
                                                uct_ib_efadv_inline_buf_size(efadv));
 
-    iface->qp = efadv_create_driver_qp(efadv_md->super.pd, &qp_init_attr,
-                                      EFADV_QP_DRIVER_TYPE_SRD);
+#ifdef HAVE_DECL_EFA_DV_RDMA_READ
+    qp_init_attr.pd                  = efadv_md->super.pd;
+    qp_init_attr.comp_mask           = IBV_QP_INIT_ATTR_PD |
+                                       IBV_QP_INIT_ATTR_SEND_OPS_FLAGS;
+    qp_init_attr.send_ops_flags      = IBV_QP_EX_WITH_SEND;
+    if (uct_ib_efadv_has_rdma_read(efadv)) {
+        qp_init_attr.send_ops_flags |= IBV_QP_EX_WITH_RDMA_READ;
+    }
+    efa_qp_init_attr.driver_qp_type  = EFADV_QP_DRIVER_TYPE_SRD;
+
+    iface->qp    = efadv_create_qp_ex(pd->context, &qp_init_attr,
+                                      &efa_qp_init_attr,
+                                      sizeof(efa_qp_init_attr));
+    iface->qp_ex = ibv_qp_to_qp_ex(iface->qp);
+#else
+    iface->qp = efadv_create_driver_qp(pd, &qp_init_attr,
+                                       EFADV_QP_DRIVER_TYPE_SRD);
+#endif
 
     if (iface->qp == NULL) {
         ucs_error("iface=%p: failed to create %s QP on "UCT_IB_IFACE_FMT
@@ -798,8 +890,11 @@ uct_srd_iface_query(uct_iface_h tl_iface, uct_iface_attr_t *iface_attr)
 
 
     iface_attr->cap.am.align_mtu        = uct_ib_mtu_value(iface->super.config.path_mtu);
+    iface_attr->cap.get.align_mtu       = uct_ib_mtu_value(iface->super.config.path_mtu);
     iface_attr->cap.am.opt_zcopy_align  = UCS_SYS_PCI_MAX_PAYLOAD;
+    iface_attr->cap.get.opt_zcopy_align = UCS_SYS_PCI_MAX_PAYLOAD;
 
+    /* AM */
     iface_attr->cap.am.max_short = uct_ib_iface_hdr_size(iface->config.max_inline,
                                                          sizeof(uct_srd_neth_t));
     iface_attr->cap.am.max_bcopy = iface->super.config.seg_size - sizeof(uct_srd_neth_t);
@@ -812,6 +907,16 @@ uct_srd_iface_query(uct_iface_h tl_iface, uct_iface_attr_t *iface_attr)
 
     if (iface_attr->cap.am.max_short) {
         iface_attr->cap.flags |= UCT_IFACE_FLAG_AM_SHORT;
+    }
+
+    /* GET */
+    /* TODO: isn't max_inl_cqe only for mlx5? here should just use 0 for min_zcopy? */
+    iface_attr->cap.get.min_zcopy = iface->super.config.max_inl_cqe[UCT_IB_DIR_TX] + 1;
+    iface_attr->cap.get.max_zcopy = iface->config.max_get_zcopy;
+    iface_attr->cap.get.max_iov   = iface->config.max_send_sge;
+
+    if (iface_attr->cap.get.max_zcopy) {
+        iface_attr->cap.flags |= UCT_IFACE_FLAG_GET_ZCOPY;
     }
 
     /* TODO: set the correct values for SRD */
@@ -837,6 +942,9 @@ static uct_iface_ops_t uct_srd_iface_tl_ops = {
     .ep_am_short_iov          = uct_srd_ep_am_short_iov,
     .ep_am_bcopy              = uct_srd_ep_am_bcopy,
     .ep_am_zcopy              = uct_srd_ep_am_zcopy,
+#ifdef HAVE_DECL_EFA_DV_RDMA_READ
+    .ep_get_zcopy             = uct_srd_ep_get_zcopy,
+#endif
     .ep_pending_add           = uct_srd_ep_pending_add,
     .ep_pending_purge         = uct_srd_ep_pending_purge,
     .ep_flush                 = uct_srd_ep_flush,
@@ -872,6 +980,8 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
 
     uct_srd_iface_config_t *config = ucs_derived_of(tl_config,
                                                     uct_srd_iface_config_t);
+    uct_ib_efadv_md_t *efadv_md    = ucs_derived_of(md, uct_ib_efadv_md_t);
+    uint32_t efadv_max_rdma_size   = uct_ib_efadv_max_rdma_size(&efadv_md->efadv);
 
     uct_ib_iface_init_attr_t init_attr  = {};
     ucs_conn_match_ops_t conn_match_ops = {
@@ -977,6 +1087,17 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     self->tx.skb                      = NULL;
     self->super.config.sl             = uct_ib_iface_config_select_sl(&config->super);
 
+    if (config->tx.max_get_zcopy == UCS_MEMUNITS_AUTO) {
+        self->config.max_get_zcopy = efadv_max_rdma_size;
+    } else if (config->tx.max_get_zcopy <= efadv_max_rdma_size) {
+        self->config.max_get_zcopy = config->tx.max_get_zcopy;
+    } else {
+        ucs_warn("srd_iface on %s:%d: reduced max_get_zcopy to %u",
+                 uct_ib_device_name(uct_ib_iface_device(&self->super)),
+                 self->super.config.port_num, efadv_max_rdma_size);
+        self->config.max_get_zcopy = efadv_max_rdma_size;
+    }
+
     if (self->super.config.rx_max_batch < UCT_SRD_RX_BATCH_MIN) {
         ucs_warn("rx max batch is too low (%d < %d), performance may be impacted",
                  self->super.config.rx_max_batch, UCT_SRD_RX_BATCH_MIN);
@@ -1046,6 +1167,10 @@ ucs_config_field_t uct_srd_iface_config_table[] = {
     {"SRD_", "", NULL,
      ucs_offsetof(uct_srd_iface_config_t, ud_common),
      UCS_CONFIG_TYPE_TABLE(uct_ud_iface_common_config_table)},
+
+    {"MAX_GET_ZCOPY", "auto",
+     "Maximal size of get operation with zcopy protocol.",
+     ucs_offsetof(uct_srd_iface_config_t, tx.max_get_zcopy), UCS_CONFIG_TYPE_MEMUNITS},
 
     {NULL}
 };

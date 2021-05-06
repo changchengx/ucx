@@ -94,6 +94,7 @@ typedef struct uct_srd_neth {
 enum {
     UCT_SRD_SEND_SKB_FLAG_COMP       = UCS_BIT(0), /* This skb contains a completion */
     UCT_SRD_SEND_SKB_FLAG_FLUSH      = UCS_BIT(1), /* This skb is a dummy flush skb */
+    UCT_SRD_SEND_SKB_FLAG_RDMA       = UCS_BIT(2), /* This skb is for RDMA READ */
 
 #if UCS_ENABLE_ASSERT
     UCT_SRD_SEND_SKB_FLAG_INVALID    = UCS_BIT(7)  /* skb is released */

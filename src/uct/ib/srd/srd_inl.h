@@ -156,7 +156,7 @@ uct_srd_ep_tx_inlv(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     iface->tx.sge[1].length  = length;
     iface->tx.wr_inl.num_sge = 2;
     iface->tx.wr_inl.wr_id   = (uintptr_t)skb;
-    skb->neth->psn           = ep->tx.psn;
+    skb->neth->psn           = ep->tx.psn++;
     uct_srd_post_send(iface, ep, &iface->tx.wr_inl, IBV_SEND_INLINE, 2);
 }
 
@@ -169,7 +169,7 @@ uct_srd_ep_tx_skb(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
     iface->tx.sge[0].length = skb->len;
     iface->tx.sge[0].addr   = (uintptr_t)skb->neth;
     iface->tx.wr_skb.wr_id  = (uintptr_t)skb;
-    skb->neth->psn          = ep->tx.psn;
+    skb->neth->psn          = ep->tx.psn++;
     uct_srd_post_send(iface, ep, &iface->tx.wr_skb, send_flags, max_log_sge);
 }
 
@@ -179,7 +179,6 @@ uct_srd_iface_complete_tx(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
 {
     iface->tx.skb = ucs_mpool_get(&iface->tx.mp);
     iface->tx.available--;
-    ep->tx.psn++;
     skb->ep = ep;
     ucs_queue_push(&ep->tx.outstanding_q, &skb->out_queue);
 }
@@ -199,15 +198,10 @@ uct_srd_neth_init_data(uct_srd_ep_t *ep, uct_srd_neth_t *neth)
 }
 
 static UCS_F_ALWAYS_INLINE ucs_status_t
-uct_srd_am_skb_common(uct_srd_iface_t *iface, uct_srd_ep_t *ep, uint8_t id,
-                      uct_srd_send_skb_t **skb_p)
+uct_srd_skb_common(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
+                   uct_srd_send_skb_t **skb_p)
 {
-    uct_srd_send_skb_t *skb;
-    uct_srd_neth_t *neth;
-
-    UCT_CHECK_AM_ID(id);
-
-    skb = uct_srd_ep_get_tx_skb(iface, ep);
+    uct_srd_send_skb_t *skb = uct_srd_ep_get_tx_skb(iface, ep);
     if (!skb) {
         return UCS_ERR_NO_RESOURCE;
     }
@@ -217,15 +211,44 @@ uct_srd_am_skb_common(uct_srd_iface_t *iface, uct_srd_ep_t *ep, uint8_t id,
      */
     ucs_assertv((ep->flags & UCT_SRD_EP_FLAG_IN_PENDING) ||
                 !uct_srd_ep_has_pending(ep),
-                "out-of-order send detected for ep %p am %d ep_pending %d arbelem %p",
-                ep, id, (ep->flags & UCT_SRD_EP_FLAG_IN_PENDING),
+                "out-of-order send detected for ep %p ep_pending %d arbelem %p",
+                ep, (ep->flags & UCT_SRD_EP_FLAG_IN_PENDING),
                 &ep->tx.pending.elem);
 
-    neth = skb->neth;
-    uct_srd_neth_init_data(ep, neth);
-    uct_srd_neth_set_type_am(ep, neth, id);
-
+    uct_srd_neth_init_data(ep, skb->neth);
     *skb_p = skb;
+    return UCS_OK;
+}
+
+static UCS_F_ALWAYS_INLINE ucs_status_t
+uct_srd_am_skb_common(uct_srd_iface_t *iface, uct_srd_ep_t *ep, uint8_t id,
+                      uct_srd_send_skb_t **skb_p)
+{
+    ucs_status_t status;
+
+    UCT_CHECK_AM_ID(id);
+
+    status = uct_srd_skb_common(iface, ep, skb_p);
+    if (status != UCS_OK) {
+        return status;
+    }
+
+    uct_srd_neth_set_type_am(ep, (*skb_p)->neth, id);
+
+    return UCS_OK;
+}
+
+static UCS_F_ALWAYS_INLINE ucs_status_t
+uct_srd_rdma_skb_common(uct_srd_iface_t *iface, uct_srd_ep_t *ep,
+                        uct_srd_send_skb_t **skb_p)
+{
+    ucs_status_t status = uct_srd_skb_common(iface, ep, skb_p);
+    if (status != UCS_OK) {
+        return status;
+    }
+
+    (*skb_p)->flags |= UCT_SRD_SEND_SKB_FLAG_RDMA;
+
     return UCS_OK;
 }
 

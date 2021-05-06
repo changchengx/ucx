@@ -40,12 +40,18 @@ enum {
 typedef struct uct_srd_iface_config {
     uct_ib_iface_config_t         super;
     uct_ud_iface_common_config_t  ud_common;
+    struct {
+        size_t max_get_zcopy;
+    } tx;
 } uct_srd_iface_config_t;
 
 
 struct uct_srd_iface {
     uct_ib_iface_t           super;
     struct ibv_qp            *qp;
+#ifdef HAVE_DECL_EFA_DV_RDMA_READ
+    struct ibv_qp_ex         *qp_ex;
+#endif
     struct {
         ucs_mpool_t          mp;
         unsigned             available;
@@ -64,6 +70,7 @@ struct uct_srd_iface {
         unsigned             tx_qp_len;
         unsigned             max_inline;
         size_t               max_send_sge;
+        size_t               max_get_zcopy;
     } config;
 
     UCS_STATS_NODE_DECLARE(stats)
