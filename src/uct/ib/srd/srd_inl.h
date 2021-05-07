@@ -119,32 +119,11 @@ static UCS_F_ALWAYS_INLINE void uct_srd_ep_set_dest_ep_id(uct_srd_ep_t *ep,
 }
 
 static UCS_F_ALWAYS_INLINE void
-uct_srd_skb_set_zcopy_desc(uct_srd_send_skb_t *skb, const uct_iov_t *iov,
-                           size_t iovcnt, uct_completion_t *comp)
+uct_srd_skb_set_comp_desc(uct_srd_send_skb_t *skb, uct_completion_t *comp)
 {
-    uct_srd_zcopy_desc_t *zdesc;
-    size_t iov_it_length;
-    uct_srd_iov_t *srd_iov;
-    size_t iov_it;
-
-    skb->flags        |= UCT_SRD_SEND_SKB_FLAG_ZCOPY;
-    zdesc              = uct_srd_zcopy_desc(skb);
-    zdesc->iovcnt      = 0;
-    for (iov_it = 0; iov_it < iovcnt; ++iov_it) {
-        iov_it_length = uct_iov_get_length(iov + iov_it);
-        if (iov_it_length == 0) {
-            continue;
-        }
-
-        ucs_assert(iov_it_length <= UINT16_MAX);
-        srd_iov         = &zdesc->iov[zdesc->iovcnt++];
-        srd_iov->buffer = iov[iov_it].buffer;
-        srd_iov->lkey   = uct_ib_memh_get_lkey(iov[iov_it].memh);
-        srd_iov->length = iov_it_length;
-    }
     if (comp != NULL) {
-        skb->flags        |= UCT_SRD_SEND_SKB_FLAG_COMP;
-        zdesc->super.comp  = comp;
+        skb->flags |= UCT_SRD_SEND_SKB_FLAG_COMP;
+        uct_srd_comp_desc(skb)->comp = comp;
     }
 }
 

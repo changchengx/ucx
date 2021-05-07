@@ -93,8 +93,7 @@ typedef struct uct_srd_neth {
 
 enum {
     UCT_SRD_SEND_SKB_FLAG_COMP       = UCS_BIT(0), /* This skb contains a completion */
-    UCT_SRD_SEND_SKB_FLAG_ZCOPY      = UCS_BIT(1), /* This skb contains a zero-copy segment */
-    UCT_SRD_SEND_SKB_FLAG_FLUSH      = UCS_BIT(2), /* This skb is a dummy flush skb */
+    UCT_SRD_SEND_SKB_FLAG_FLUSH      = UCS_BIT(1), /* This skb is a dummy flush skb */
 
 #if UCS_ENABLE_ASSERT
     UCT_SRD_SEND_SKB_FLAG_INVALID    = UCS_BIT(7)  /* skb is released */
@@ -107,7 +106,6 @@ enum {
 /*
  * Send skb with completion layout:
  * - if COMP skb flag is set, skb contains uct_srd_comp_desc_t after the payload
- * - if ZCOPY skb flag is set, skb contains uct_srd_zcopy_desc_t after the payload.
  * - otherwise, there is no additional data.
  */
 typedef struct uct_srd_send_skb {
@@ -127,23 +125,6 @@ typedef struct uct_srd_comp_desc {
     uct_completion_t        *comp;
     ucs_status_t            status; /* used in case of failure */
 } uct_srd_comp_desc_t;
-
-
-/**
- * Used to keep uct_iov_t buffers without datatype information.
- */
-typedef struct uct_srd_iov {
-    void                   *buffer; /* Data buffer */
-    uint32_t               lkey;    /* Lkey for memory region */
-    uint16_t               length;  /* Length of the buffer in bytes */
-} UCS_S_PACKED uct_srd_iov_t;
-
-
-typedef struct uct_srd_zcopy_desc {
-    uct_srd_comp_desc_t      super;
-    uct_srd_iov_t            iov[UCT_IB_MAX_IOV];
-    uint16_t                 iovcnt; /* Count of the iov[] array valid elements */
-} uct_srd_zcopy_desc_t;
 
 
 typedef struct uct_srd_recv_skb {
@@ -198,13 +179,6 @@ static inline uct_srd_comp_desc_t *uct_srd_comp_desc(uct_srd_send_skb_t *skb)
     ucs_assert(skb->flags & UCT_SRD_SEND_SKB_FLAG_COMP);
     ucs_assert(!(skb->flags & UCT_SRD_SEND_SKB_FLAG_INVALID));
     return (uct_srd_comp_desc_t*)((char*)skb->neth + skb->len);
-}
-
-static inline uct_srd_zcopy_desc_t *uct_srd_zcopy_desc(uct_srd_send_skb_t *skb)
-{
-    ucs_assert(skb->flags & UCT_SRD_SEND_SKB_FLAG_ZCOPY);
-    ucs_assert(!(skb->flags & UCT_SRD_SEND_SKB_FLAG_INVALID));
-    return (uct_srd_zcopy_desc_t*)((char*)skb->neth + skb->len);
 }
 
 #endif

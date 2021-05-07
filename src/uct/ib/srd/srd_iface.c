@@ -159,7 +159,7 @@ uct_srd_ep_am_zcopy(uct_ep_h tl_ep, uint8_t id, const void *header,
                        "uct_srd_ep_am_zcopy");
 
     /* TODO: why is this check needed? */
-    UCT_CHECK_LENGTH(sizeof(uct_srd_neth_t) + sizeof(uct_srd_zcopy_desc_t) + header_length,
+    UCT_CHECK_LENGTH(sizeof(uct_srd_neth_t) + sizeof(uct_srd_comp_desc_t) + header_length,
                      0, iface->super.config.seg_size, "am_zcopy header");
 
     UCT_SRD_CHECK_AM_ZCOPY_LENGTH(iface, header_length,
@@ -181,7 +181,7 @@ uct_srd_ep_am_zcopy(uct_ep_h tl_ep, uint8_t id, const void *header,
                       UCT_IB_MAX_ZCOPY_LOG_SGE(&iface->super));
     iface->tx.wr_skb.num_sge = 1;
 
-    uct_srd_skb_set_zcopy_desc(skb, iov, iovcnt, comp);
+    uct_srd_skb_set_comp_desc(skb, comp);
     uct_srd_iface_complete_tx(iface, ep, skb);
     UCT_TL_EP_STAT_OP(&ep->super, AM, ZCOPY, header_length +
                       uct_iov_total_length(iov, iovcnt));
@@ -808,7 +808,7 @@ uct_srd_iface_query(uct_iface_h tl_iface, uct_iface_attr_t *iface_attr)
     iface_attr->cap.am.max_iov   = iface->config.max_send_sge;
     iface_attr->cap.am.max_hdr   = uct_ib_iface_hdr_size(iface->super.config.seg_size,
                                                          sizeof(uct_srd_neth_t) +
-                                                         sizeof(uct_srd_zcopy_desc_t));
+                                                         sizeof(uct_srd_comp_desc_t));
 
     if (iface_attr->cap.am.max_short) {
         iface_attr->cap.flags |= UCT_IFACE_FLAG_AM_SHORT;
@@ -936,6 +936,8 @@ UCS_CLASS_INIT_FUNC(uct_srd_iface_t, uct_md_h md, uct_worker_h worker,
     data_size = sizeof(uct_srd_ctl_hdr_t) + self->super.addr_size;
     data_size = ucs_max(data_size, self->super.config.seg_size);
     data_size = ucs_max(data_size, sizeof(uct_srd_am_short_hdr_t) +
+                                   sizeof(uct_srd_neth_t));
+    data_size = ucs_max(data_size, sizeof(uct_srd_comp_desc_t) +
                                    sizeof(uct_srd_neth_t));
     status = uct_iface_mpool_init(&self->super.super, &self->tx.mp,
                                   sizeof(uct_srd_send_skb_t) + data_size,
