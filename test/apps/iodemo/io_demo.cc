@@ -358,6 +358,14 @@ public:
         uint32_t    sn;
         uint8_t     op;
         uint64_t    data_size;
+        ucp_datatype_t data_type;
+        uint8_t     dt_iov_size;
+        size_t    dt_iov[];
+        size_t get_iomsg_size(void) const {
+            return reinterpret_cast<uint64_t>(this->dt_iov) -
+                   reinterpret_cast<uint64_t>(this) +
+                   dt_iov_size * sizeof(dt_iov[0]);
+        }
     } iomsg_t;
 
 protected:
@@ -715,8 +723,8 @@ protected:
 
     static void validate(const iomsg_t *msg, size_t iomsg_size) {
         unsigned seed   = msg->sn;
-        const void *buf = msg + 1;
-        size_t buf_size = iomsg_size - sizeof(*msg);
+        const void *buf = reinterpret_cast<const void*>(msg->dt_iov + msg->dt_iov_size);
+        size_t buf_size = iomsg_size - msg->get_iomsg_size();
 
         size_t err_pos = IoDemoRandom::validate(seed, buf, buf_size,
                                                 UCS_MEMORY_TYPE_HOST);
@@ -737,8 +745,9 @@ protected:
 
 private:
     bool send_io_message(UcxConnection *conn, IoMessage *msg) {
+        const iomsg_t *m = reinterpret_cast<iomsg_t *>(msg->buffer());
         VERBOSE_LOG << "sending IO " << io_op_names[msg->msg()->op] << ", sn "
-                    << msg->msg()->sn << " size " << sizeof(iomsg_t);
+                    << msg->msg()->sn << " size " << m->get_iomsg_size();
 
         /* send IO_READ_COMP as a data since the transaction must be matched
          * by sn on receiver side */
