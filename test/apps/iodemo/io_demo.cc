@@ -742,11 +742,19 @@ protected:
                         xfer_type_t send_recv_data,
                         UcxCallback* callback = EmptyCallback::get()) {
         const ucp_datatype_t data_type = iov.get_bufferiov_dt();
-        for (size_t i = 0; i < iov.size(); ++i) {
+        if (data_type == ucp_dt_make_contig(1)) {
+            for (size_t i = 0; i < iov.size(); ++i) {
+                if (send_recv_data == XFER_TYPE_SEND) {
+                    conn->send_data(iov[i].buffer(), iov[i].size(), sn, data_type, callback);
+                } else {
+                    conn->recv_data(iov[i].buffer(), iov[i].size(), sn, data_type, callback);
+                }
+            }
+        } else {
             if (send_recv_data == XFER_TYPE_SEND) {
-                conn->send_data(iov[i].buffer(), iov[i].size(), sn, data_type, callback);
+                conn->send_data(iov.get_dt_iov(), iov.get_dt_iov_size(), sn, data_type, callback);
             } else {
-                conn->recv_data(iov[i].buffer(), iov[i].size(), sn, callback);
+                conn->recv_data(iov.get_dt_iov(), iov.get_dt_iov_size(), sn, data_type, callback);
             }
         }
     }
@@ -839,7 +847,11 @@ public:
             _op_cnt    = op_cnt;
             _sn        = sn;
             _iov       = iov;
-            _chunk_cnt = iov->size();
+            if (iov->get_bufferiov_dt() == ucp_dt_make_iov()) {
+                _chunk_cnt = 1;
+            } else {
+                _chunk_cnt = iov->size();
+            }
         }
 
         virtual void operator()(ucs_status_t status) {
@@ -991,7 +1003,13 @@ public:
         BufferIov *iov             = _data_buffers_pool.get();
         IoWriteResponseCallback *w = _callback_pool.get();
 
-        iov->init(msg->data_size, _data_chunks_pool, msg->sn, opts().validate);
+        iov->init(msg->data_size, _data_chunks_pool, msg->sn, opts().validate, msg->data_type);
+        if (iov->get_bufferiov_dt() == ucp_dt_make_iov()) {
+            for (size_t idx = 0; idx < iov->size(); idx++) {
+                (*iov)[idx].resize(msg->dt_iov[idx]);
+                iov->get_dt_iov()[idx].length = msg->dt_iov[idx];
+            }
+        }
         w->init(this, conn, msg->sn, iov, &_curr_state.write_count);
 
         recv_data(conn, *iov, msg->sn, w);
@@ -1313,7 +1331,8 @@ public:
         r->init(this, server_index, sn, validate, iov);
 
         recv_data(server_info.conn, *iov, sn, r);
-        server_info.conn->recv_data(r->buffer(), opts().iomsg_size, sn, r);
+        server_info.conn->recv_data(r->buffer(), opts().iomsg_size,
+                                    ucp_dt_make_contig(1), sn, r);
 
         return data_size;
     }
