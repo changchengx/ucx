@@ -74,6 +74,7 @@ typedef struct {
     bool                     validate;
     bool                     use_am;
     ucs_memory_type_t        memory_type;
+    ucp_datatype_t           bufferiov_dt;
 } options_t;
 
 #define LOG_PREFIX  "[DEMO]"
@@ -2148,8 +2149,9 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
     test_opts->validate              = false;
     test_opts->use_am                = false;
     test_opts->memory_type           = UCS_MEMORY_TYPE_HOST;
+    test_opts->bufferiov_dt          = ucp_dt_make_contig(1);
 
-    while ((c = getopt(argc, argv, "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqAHP:m:")) !=
+    while ((c = getopt(argc, argv, "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqAHP:m:D:")) !=
            -1) {
         switch (c) {
         case 'p':
@@ -2286,6 +2288,11 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
                 return -1;
             }
             break;
+        case 'D':
+            if (!strcmp(optarg, "iov")) {
+                test_opts->bufferiov_dt = ucp_dt_make_iov();
+            }
+            break;
         case 'h':
         default:
             std::cout << "Usage: io_demo [options] [server_address]" << std::endl;
@@ -2324,6 +2331,7 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
                       << ", cuda, cuda-managed"
 #endif
                       << std::endl;
+            std::cout << "  -D <contig or iov mode>     For iov mode, use -D iov, others are contig mode" << std::endl;
             return -1;
         }
     }
