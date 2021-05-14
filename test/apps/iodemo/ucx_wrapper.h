@@ -16,6 +16,8 @@
 #include <sstream>
 #include <string>
 #include <ucs/datastruct/list.h>
+#include <sys/epoll.h>
+#include <assert.h>
 
 #define MAX_LOG_PREFIX_SIZE   64
 
@@ -68,6 +70,38 @@ private:
     const bool               _enable;
 };
 
+class Epoll {
+ public:
+  explicit Epoll(uint32_t max_events = 10240, bool et = true);
+
+  ~Epoll();
+
+  void Add(int fd, uint64_t data, uint32_t event);
+
+  void Mod(int fd, uint64_t data, uint32_t event);
+
+  void Del(int fd, uint64_t data, uint32_t event);
+
+  int Wait(int millsecond);
+
+  struct epoll_event &Get(uint32_t i) {
+    assert(events_ != NULL && i <= max_events_);
+    return events_[i];
+  }
+
+ private:
+  void Ctrl(int fd, uint64_t data, uint32_t events, int op);
+
+ private:
+  // epoll fd
+  int epoll_fd_;
+
+  uint32_t max_events_;
+
+  struct epoll_event *events_;
+
+  bool et_;
+};
 
 /**
  * Holds UCX global context and worker
@@ -85,6 +119,9 @@ public:
     UcxConnection* connect(const struct sockaddr* saddr, size_t addrlen);
 
     void progress();
+
+    void epoll_init();
+    void Wait();
 
     static const std::string sockaddr_str(const struct sockaddr* saddr,
                                           size_t addrlen);
@@ -184,6 +221,8 @@ private:
     std::string                    _iomsg_buffer;
     double                         _connect_timeout;
     bool                           _use_am;
+    Epoll                          _epoll;
+    int                            _epoll_fd;
 };
 
 
