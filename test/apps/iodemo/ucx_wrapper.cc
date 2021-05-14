@@ -172,7 +172,7 @@ void UcxContext::Wait() {
     for (int i = 0; i < err; ++i) {
         const epoll_event &ev = _epoll.Get(i);
         if (ev.data.fd == _epoll_fd) {
-			UCX_LOG << "check epoll_fd";
+			//UCX_LOG << "check epoll_fd";
             ucp_worker_progress(_worker);
         }
     }
