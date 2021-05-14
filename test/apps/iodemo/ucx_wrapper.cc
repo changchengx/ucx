@@ -13,6 +13,8 @@
 #include <assert.h>
 
 #include <limits>
+#include <unistd.h>
+#include <errno.h>
 
 
 #define AM_MSG_ID 0
@@ -82,10 +84,57 @@ UcxLog::~UcxLog()
 
 #define UCX_LOG UcxLog("[UCX]", true)
 
+Epoll::Epoll(uint32_t max_events, bool et) :
+	   epoll_fd_(::epoll_create1(EPOLL_CLOEXEC)),
+       max_events_(max_events),
+       events_(new epoll_event[max_events + 1]),
+       et_(et) {
+  assert(epoll_fd_ > 0);
+}
+
+Epoll::~Epoll() {
+  if (events_) {
+      delete[] events_;
+      events_ = NULL;
+  }
+
+  if (epoll_fd_ > 0) {
+      close(epoll_fd_);
+  }
+}
+
+void Epoll::Add(int fd, uint64_t data, uint32_t event) {
+    Ctrl(fd, data, event, EPOLL_CTL_ADD);
+}
+
+void Epoll::Mod(int fd, uint64_t data, uint32_t event) {
+    Ctrl(fd, data, event, EPOLL_CTL_MOD);
+}
+
+void Epoll::Del(int fd, uint64_t data, uint32_t event) {
+    Ctrl(fd, data, event, EPOLL_CTL_DEL);
+}
+
+int Epoll::Wait(int millsecond) {
+    return epoll_wait(epoll_fd_, events_, max_events_ + 1, millsecond);
+}
+
+void Epoll::Ctrl(int fd, uint64_t data, uint32_t events, int op) {
+    struct epoll_event ev;
+    ev.data.u64 = data;
+    if (et_) {
+      ev.events = events | EPOLLET;
+    } else {
+      ev.events = events;
+    }
+
+    epoll_ctl(epoll_fd_, op, fd, &ev);
+}
+
 UcxContext::UcxContext(size_t iomsg_size, double connect_timeout, bool use_am) :
     _context(NULL), _worker(NULL), _listener(NULL), _iomsg_recv_request(NULL),
     _iomsg_buffer(iomsg_size, '\0'), _connect_timeout(connect_timeout),
-    _use_am(use_am)
+    _use_am(use_am), _epoll(128, true), _epoll_fd(0)
 {
 }
 
@@ -96,6 +145,36 @@ UcxContext::~UcxContext()
     destroy_worker();
     if (_context) {
         ucp_cleanup(_context);
+    }
+}
+
+void UcxContext::epoll_init(){
+    ucs_status_t status;
+    status = ucp_worker_get_efd(_worker, &_epoll_fd);
+    if (status != UCS_OK) {
+        UCX_LOG << "ucp_worker_get_ef is error";
+        return;
+    }
+    _epoll.Add(_epoll_fd, _epoll_fd, EPOLLIN);
+    status = ucp_worker_arm(_worker);
+    if (status == UCS_ERR_BUSY) { /* some events are arrived already */
+		UCX_LOG << "ucx is busy";
+        return;
+    }
+}
+
+void UcxContext::Wait() {
+    int err = 0;
+    do {
+        err = _epoll.Wait(-1);
+    } while ((err == -1) && (errno == EINTR));
+
+    for (int i = 0; i < err; ++i) {
+        const epoll_event &ev = _epoll.Get(i);
+        if (ev.data.fd == _epoll_fd) {
+			UCX_LOG << "check epoll_fd";
+            ucp_worker_progress(_worker);
+        }
     }
 }
 
@@ -112,7 +191,9 @@ bool UcxContext::init()
                               UCP_PARAM_FIELD_REQUEST_INIT |
                               UCP_PARAM_FIELD_REQUEST_SIZE;
     ucp_params.features     = _use_am ? UCP_FEATURE_AM :
-                                        UCP_FEATURE_TAG | UCP_FEATURE_STREAM;
+                                        UCP_FEATURE_TAG |
+                                        UCP_FEATURE_STREAM |
+                                        UCP_FEATURE_WAKEUP;
     ucp_params.request_init = request_init;
     ucp_params.request_size = sizeof(ucx_request);
     ucs_status_t status = ucp_init(&ucp_params, NULL, &_context);
@@ -136,6 +217,7 @@ bool UcxContext::init()
         return false;
     }
 
+    epoll_init();
     UCX_LOG << "created worker " << _worker;
 
     if (_use_am) {
@@ -184,7 +266,10 @@ UcxConnection* UcxContext::connect(const struct sockaddr* saddr, size_t addrlen)
 
 void UcxContext::progress()
 {
+#if 0
     ucp_worker_progress(_worker);
+#endif
+    Wait();
     progress_io_message();
     progress_conn_requests();
     progress_failed_connections();
