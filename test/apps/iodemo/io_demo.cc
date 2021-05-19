@@ -295,8 +295,17 @@ protected:
 
     class BufferIov {
     public:
-        BufferIov(size_t size, MemoryPool<BufferIov>& pool) : _pool(pool) {
+        BufferIov(size_t size, MemoryPool<BufferIov>& pool) :
+            _pool(pool), _data_type(ucp_dt_make_contig(1)) {
             _iov.reserve(size);
+        }
+
+        ucp_datatype_t get_bufferiov_dt() const {
+            return _data_type;
+        }
+
+        void set_bufferiov_dt(ucp_datatype_t data_type) {
+            _data_type = data_type;
         }
 
         size_t size() const {
@@ -304,7 +313,8 @@ protected:
         }
 
         void init(size_t data_size, MemoryPool<Buffer, true> &chunk_pool,
-                  uint32_t sn, bool validate) {
+                  uint32_t sn, bool validate,
+                  ucp_datatype_t data_type = ucp_dt_make_contig(1)) {
             assert(_iov.empty());
 
             Buffer *chunk = chunk_pool.get();
@@ -320,6 +330,7 @@ protected:
             if (validate) {
                 fill_data(sn);
             }
+            set_bufferiov_dt(data_type);
         }
 
         inline Buffer& operator[](size_t i) const {
@@ -370,6 +381,7 @@ protected:
     private:
         std::vector<Buffer*>   _iov;
         MemoryPool<BufferIov>& _pool;
+        ucp_datatype_t _data_type;
     };
 
     /* Asynchronous IO message */
