@@ -296,7 +296,8 @@ protected:
     class BufferIov {
     public:
         BufferIov(size_t size, MemoryPool<BufferIov>& pool) :
-            _pool(pool), _data_type(ucp_dt_make_contig(1)) {
+            _pool(pool), _data_type(ucp_dt_make_contig(1)),
+            _dt_iov(NULL), _dt_iov_size(0) {
             _iov.reserve(size);
         }
 
@@ -306,6 +307,14 @@ protected:
 
         void set_bufferiov_dt(ucp_datatype_t data_type) {
             _data_type = data_type;
+        }
+
+        ucp_dt_iov_t* get_dt_iov() const {
+            return _dt_iov;
+        }
+
+        uint8_t get_dt_iov_size() const {
+            return _dt_iov_size;
         }
 
         size_t size() const {
@@ -331,6 +340,9 @@ protected:
                 fill_data(sn);
             }
             set_bufferiov_dt(data_type);
+            if (get_bufferiov_dt() == ucp_dt_make_iov()) {
+                create_iov_buffer();
+            }
         }
 
         inline Buffer& operator[](size_t i) const {
@@ -342,7 +354,9 @@ protected:
                 _iov.back()->release();
                 _iov.pop_back();
             }
-
+            if (get_bufferiov_dt() == ucp_dt_make_iov()) {
+                release_iov_buffer();
+            }
             _pool.put(this);
         }
 
@@ -375,6 +389,21 @@ protected:
             }
         }
 
+        void create_iov_buffer(void) {
+            _dt_iov_size = size();
+            _dt_iov = static_cast<ucp_dt_iov_t*>
+                      (calloc(sizeof(*_dt_iov), _dt_iov_size));
+            for (size_t buffer_idx = 0; buffer_idx < size(); buffer_idx++) {
+                _dt_iov[buffer_idx].buffer = _iov[buffer_idx]->buffer();
+                _dt_iov[buffer_idx].length = _iov[buffer_idx]->size();
+            }
+        }
+        void release_iov_buffer(void) {
+            free(_dt_iov);
+            _dt_iov = NULL;
+            _dt_iov_size = 0;
+        }
+
     public:
         static const size_t    _npos = static_cast<size_t>(-1);
 
@@ -382,6 +411,8 @@ protected:
         std::vector<Buffer*>   _iov;
         MemoryPool<BufferIov>& _pool;
         ucp_datatype_t _data_type;
+        ucp_dt_iov_t* _dt_iov;
+        uint8_t _dt_iov_size;
     };
 
     /* Asynchronous IO message */
