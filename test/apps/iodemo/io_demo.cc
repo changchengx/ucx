@@ -1166,6 +1166,23 @@ public:
 
         iov->init(data_size, _data_chunks_pool, sn, validate, bufferiov_dt);
         cb->init(iov, NULL);
+        if (iov->get_bufferiov_dt() == ucp_dt_make_iov()) {
+            data_size = 0;
+            size_t iov_size = iov->get_dt_iov_size();
+            int switch_flag = 0;
+            for (size_t idx = 0; idx < iov_size; idx++) {
+                size_t resize_val = 0;
+                if (switch_flag == 1) {
+                    resize_val = 30;
+                } else {
+                    resize_val = (*iov)[idx]._capacity;
+                }
+                switch_flag = !switch_flag;
+                (*iov)[idx].resize(resize_val);
+                iov->get_dt_iov()[idx].length = (*iov)[idx].size();
+                data_size += iov->get_dt_iov()[idx].length;
+            }
+        }
 
         bufferiov_dt = iov->get_bufferiov_dt();
         if (bufferiov_dt == ucp_dt_make_iov()) {
