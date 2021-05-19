@@ -244,6 +244,7 @@ public:
                    UcxCallback* callback = EmptyCallback::get());
 
     bool recv_data(void *buffer, size_t length, uint32_t sn,
+                   ucp_datatype_t data_type,
                    UcxCallback* callback = EmptyCallback::get());
 
     void cancel_all();
