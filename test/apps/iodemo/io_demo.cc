@@ -67,6 +67,7 @@ typedef struct {
     size_t                   num_offcache_buffers;
     bool                     verbose;
     bool                     validate;
+    ucp_datatype_t           bufferiov_dt;
 } options_t;
 
 #define LOG_PREFIX  "[DEMO]"
@@ -1864,8 +1865,9 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
     test_opts->random_seed           = std::time(NULL);
     test_opts->verbose               = false;
     test_opts->validate              = false;
+    test_opts->bufferiov_dt          = ucp_dt_make_contig(1);
 
-    while ((c = getopt(argc, argv, "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqHP:")) != -1) {
+    while ((c = getopt(argc, argv, "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqHP:D:")) != -1) {
         switch (c) {
         case 'p':
             test_opts->port_num = atoi(optarg);
@@ -1983,6 +1985,11 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
         case 'P':
             test_opts->print_interval = atof(optarg);
             break;
+        case 'D':
+            if (!strcmp(optarg, "iov")) {
+                test_opts->bufferiov_dt = ucp_dt_make_iov();
+            }
+            break;
         case 'h':
         default:
             std::cout << "Usage: io_demo [options] [server_address]" << std::endl;
@@ -2014,6 +2021,8 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
             std::cout << "  -q                         Enable data integrity and transaction check" << std::endl;
             std::cout << "  -H                         Use human-readable timestamps" << std::endl;
             std::cout << "  -P <interval>              Set report printing interval"  << std::endl;
+            std::cout << "  -D <contig or iov mode>     For iov mode, use -D iov, "
+                      << "others are contig mode" << std::endl;
             std::cout << "" << std::endl;
             return -1;
         }
