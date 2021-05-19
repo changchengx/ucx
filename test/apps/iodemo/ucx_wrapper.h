@@ -240,6 +240,7 @@ public:
                          UcxCallback* callback = EmptyCallback::get());
 
     bool send_data(const void *buffer, size_t length, uint32_t sn,
+                   ucp_datatype_t data_type,
                    UcxCallback* callback = EmptyCallback::get());
 
     bool recv_data(void *buffer, size_t length, uint32_t sn,
@@ -301,7 +302,7 @@ private:
     void established(ucs_status_t status);
 
     bool send_common(const void *buffer, size_t length, ucp_tag_t tag,
-                     UcxCallback* callback);
+                     ucp_datatype_t data_type, UcxCallback* callback);
 
     void request_started(ucx_request *r);
 
