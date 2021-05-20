@@ -51,6 +51,12 @@ static uint16_t server_port    = DEFAULT_PORT;
 static int num_iterations      = DEFAULT_NUM_ITERATIONS;
 
 
+enum {
+    DATATYPE_IOV    = ucp_dt_make_iov(),
+    DATATYPE_CONTIG = ucp_dt_make_contig(1)
+};
+
+
 typedef enum {
     CLIENT_SERVER_SEND_RECV_STREAM  = UCS_BIT(0),
     CLIENT_SERVER_SEND_RECV_TAG     = UCS_BIT(1),
@@ -324,7 +330,9 @@ static int send_recv_stream(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                         UCP_OP_ATTR_FIELD_DATATYPE |
                          UCP_OP_ATTR_FIELD_USER_DATA;
+    param.datatype     = DATATYPE_CONTIG;
     param.user_data    = &ctx;
 
     if (!is_server) {
@@ -369,7 +377,9 @@ static int send_recv_tag(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                         UCP_OP_ATTR_FIELD_DATATYPE |
                          UCP_OP_ATTR_FIELD_USER_DATA;
+    param.datatype     = DATATYPE_CONTIG;
     param.user_data    = &ctx;
     if (!is_server) {
         ret = generate_test_string(msg, msg_length);
@@ -447,7 +457,9 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
 
     ctx.complete        = 0;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
+                          UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
+    params.datatype     = DATATYPE_CONTIG;
     params.user_data    = &ctx;
 
     if (is_server) {
