@@ -476,21 +476,27 @@ static int send_recv_stream(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
     test_req_t ctx;
     int ret;
 
-    msg_length = test_string_length;
-    msg        = mem_type_malloc(msg_length);
-    CHKERR_ACTION(msg == NULL, "allocate memory\n", return -1;);
-    mem_type_memset(msg, 0, msg_length);
+    data_meta_t mdata;
+    mdata.is_server       = is_server;
+    mdata.data_type       = DATATYPE_CONTIG;
+    mdata.buffer_size     = test_string_length;
+    mdata.buffer          = NULL;
+    ret                   = buffer_malloc(&mdata);
+    CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
+
+    msg        = mdata.buffer;
+    msg_length = mdata.buffer_size;
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                          UCP_OP_ATTR_FIELD_DATATYPE |
                          UCP_OP_ATTR_FIELD_USER_DATA;
-    param.datatype     = DATATYPE_CONTIG;
+    param.datatype     = mdata.data_type;
     param.user_data    = &ctx;
 
-    if (!is_server) {
-        ret = generate_test_string(msg, msg_length);
-        CHKERR_ACTION(ret < 0, "generate test string", return -1;);
+    if (!mdata.is_server) {
+        ret = fill_buffer(&mdata);
+        CHKERR_ACTION(ret != 0, "generate test string", return -1;);
 
         /* Client sends a message to the server using the stream API */
         param.cb.send = send_cb;
@@ -523,20 +529,26 @@ static int send_recv_tag(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
     test_req_t ctx;
     int ret;
 
-    msg_length = test_string_length;
-    msg        = mem_type_malloc(msg_length);
-    CHKERR_ACTION(msg == NULL, "allocate memory\n", return -1;);
-    mem_type_memset(msg, 0, msg_length);
+    data_meta_t mdata;
+    mdata.is_server       = is_server;
+    mdata.data_type       = DATATYPE_CONTIG;
+    mdata.buffer_size     = test_string_length;
+    mdata.buffer          = NULL;
+    ret                   = buffer_malloc(&mdata);
+    CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
+
+    msg        = mdata.buffer;
+    msg_length = mdata.buffer_size;
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                          UCP_OP_ATTR_FIELD_DATATYPE |
                          UCP_OP_ATTR_FIELD_USER_DATA;
-    param.datatype     = DATATYPE_CONTIG;
+    param.datatype     = mdata.data_type;
     param.user_data    = &ctx;
-    if (!is_server) {
-        ret = generate_test_string(msg, msg_length);
-        CHKERR_ACTION(ret < 0, "generate test string", return -1;);
+    if (!mdata.is_server) {
+        ret = fill_buffer(&mdata);
+        CHKERR_ACTION(ret != 0, "generate test string", return -1;);
 
         /* Client sends a message to the server using the Tag-Matching API */
         param.cb.send = send_cb;
@@ -603,19 +615,25 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
     test_req_t ctx;
     int ret;
 
-    msg_length = test_string_length;
-    msg        = mem_type_malloc(msg_length);
-    CHKERR_ACTION(msg == NULL, "allocate memory\n", return -1;);
-    mem_type_memset(msg, 0, msg_length);
+    data_meta_t mdata;
+    mdata.is_server       = is_server;
+    mdata.data_type       = DATATYPE_CONTIG;
+    mdata.buffer_size     = test_string_length;
+    mdata.buffer          = NULL;
+    ret                   = buffer_malloc(&mdata);
+    CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
+
+    msg        = mdata.buffer;
+    msg_length = mdata.buffer_size;
 
     ctx.complete        = 0;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
                           UCP_OP_ATTR_FIELD_DATATYPE |
                           UCP_OP_ATTR_FIELD_USER_DATA;
-    params.datatype     = DATATYPE_CONTIG;
+    params.datatype     = mdata.data_type;
     params.user_data    = &ctx;
 
-    if (is_server) {
+    if (mdata.is_server) {
         am_data_desc.recv_buf = msg;
 
         /* waiting for AM callback has called */
@@ -641,8 +659,8 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
             request = NULL;
         }
     } else {
-        ret = generate_test_string(msg, msg_length);
-        CHKERR_ACTION(ret < 0, "generate test string", return -1;);
+        ret = fill_buffer(&mdata);
+        CHKERR_ACTION(ret != 0, "generate test string", return -1;);
 
         /* Client sends a message to the server using the AM API */
         params.cb.send = (ucp_send_nbx_callback_t)send_cb,
