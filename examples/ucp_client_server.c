@@ -272,12 +272,14 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
 {
     ucs_status_t status;
     char *msg_str;
+    int rst = 0;
 
     status = request_wait(ucp_worker, request, ctx);
     if (status != UCS_OK) {
         fprintf(stderr, "unable to %s UCX message (%s)\n",
                 is_server ? "receive": "send", ucs_status_string(status));
-        return -1;
+        rst = -1;
+        goto release_msg;
     }
 
     /* Print the output of the first, last and every PRINT_INTERVAL iteration */
@@ -286,7 +288,8 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
         msg_str = calloc(1, test_string_length + 1);
         if (msg_str == NULL) {
             fprintf(stderr, "memory allocation failed\n");
-            return -1;
+            rst = -1;
+            goto release_msg;
         }
 
         mem_type_memcpy(msg_str, msg, test_string_length);
@@ -294,7 +297,9 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
         free(msg_str);
     }
 
-    return 0;
+release_msg:
+    mem_type_free(msg);
+    return rst;
 }
 
 /**
