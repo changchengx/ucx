@@ -163,6 +163,31 @@ int buffer_malloc(data_meta_t *mdata)
     return 0;
 }
 
+int fill_buffer(data_meta_t *mdata)
+{
+    int rst              = 0;
+    size_t dt_iov_idx    = 0;
+    ucp_dt_iov_t *dt_iov = NULL;
+
+    if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+        mdata->data_type == DATATYPE_IOV) {
+        dt_iov = mdata->buffer;
+
+        for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
+            rst = generate_test_string(dt_iov[dt_iov_idx].buffer,
+                                       dt_iov[dt_iov_idx].length);
+            if (rst != 0) {
+                break;
+            }
+        }
+    } else {
+        rst = generate_test_string(mdata->buffer, mdata->buffer_size);
+    }
+    CHKERR_ACTION(rst != 0, "generate test string", return -1;);
+
+    return rst;
+}
+
 static void tag_recv_cb(void *request, ucs_status_t status,
                         const ucp_tag_recv_info_t *info, void *user_data)
 {
