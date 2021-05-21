@@ -35,6 +35,8 @@
 #include <arpa/inet.h> /* inet_addr */
 #include <unistd.h>    /* getopt */
 #include <stdlib.h>    /* atoi */
+#include <errno.h>
+#include <limits.h>
 
 #define DEFAULT_PORT           13337
 #define IP_STRING_LEN          50
@@ -750,6 +752,57 @@ static void usage()
                     num_iterations);
     print_common_help();
     fprintf(stderr, "\n");
+}
+
+static int parse_message_sizes(const char *opt_arg, data_meta_t *mdata)
+{
+    const char delim = ',';
+    size_t token_num, token_it;
+    char *optarg_ptr, *optarg_ptr2;
+
+    optarg_ptr = (char*)opt_arg;
+    token_num  = 0;
+
+    while ((optarg_ptr = strchr(optarg_ptr, delim)) != NULL) {
+        ++optarg_ptr;
+        ++token_num;
+    }
+    ++token_num;
+
+    optarg_ptr = (char*)opt_arg;
+    errno      = 0;
+    if (token_num == 1) {
+        mdata->data_type   = DATATYPE_CONTIG;
+        test_string_length = strtoul(optarg_ptr, &optarg_ptr2, 10);
+
+        if ((ERANGE == errno && ULONG_MAX == test_string_length) ||
+            (errno != 0 && test_string_length <= 0)) {
+            printf("Invalid message size\n");
+            return -1;
+        }
+        mdata->buffer_size = test_string_length;
+    } else {
+        mdata->data_type   = DATATYPE_IOV;
+        mdata->buffer_size = token_num;
+        mdata->iov_vals    = calloc(mdata->buffer_size,
+                                    sizeof(mdata->iov_vals[0]));
+        CHKERR_ACTION(mdata->iov_vals == NULL, "allocate memory\n", return -1;);
+
+        for (token_it = 0; token_it < mdata->buffer_size; ++token_it) {
+            mdata->iov_vals[token_it] = strtoul(optarg_ptr, &optarg_ptr2, 10);
+            if ((ERANGE == errno && ULONG_MAX == mdata->iov_vals[token_it]) ||
+                (errno != 0 && mdata->iov_vals[token_it] == 0) ||
+                (optarg_ptr == optarg_ptr2)) {
+                free(mdata->iov_vals);
+                mdata->iov_vals = NULL;
+                printf("Invalid message size\n");
+                return -1;
+            }
+            optarg_ptr = optarg_ptr2 + 1;
+        }
+    }
+
+    return 0;
 }
 
 /**
