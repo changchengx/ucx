@@ -65,6 +65,16 @@ typedef enum {
 } send_recv_type_t;
 
 
+typedef struct data_meta {
+    int              is_server;
+    send_recv_type_t send_recv_type;
+    ucp_datatype_t   data_type;
+    size_t           buffer_size;
+    size_t           *iov_vals;
+    void             *buffer;
+} data_meta_t;
+
+
 /**
  * Server's application context to be used in the user's connection request
  * callback.
