@@ -188,6 +188,72 @@ int fill_buffer(data_meta_t *mdata)
     return rst;
 }
 
+void *copy_buffer(data_meta_t *mdata)
+{
+    char **iov_rst       = NULL;
+    char *contig_rst     = NULL;
+    size_t dt_iov_idx    = 0;
+    ucp_dt_iov_t *dt_iov = NULL;
+
+    if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+        mdata->data_type == DATATYPE_IOV) {
+        dt_iov  = mdata->buffer;
+        iov_rst = calloc(mdata->buffer_size, sizeof(char*));
+
+        if (iov_rst == NULL) {
+            return NULL;
+        }
+
+        for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
+            iov_rst[dt_iov_idx] = calloc(dt_iov[dt_iov_idx].length + 1,
+                                         sizeof(char));
+            if (iov_rst[dt_iov_idx] == NULL) {
+                break;
+            }
+            mem_type_memcpy(iov_rst[dt_iov_idx], dt_iov[dt_iov_idx].buffer,
+                            dt_iov[dt_iov_idx].length);
+        }
+        if (dt_iov_idx == mdata->buffer_size) {
+            return iov_rst;
+        }
+
+        for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
+            free(iov_rst[dt_iov_idx]);
+            iov_rst[dt_iov_idx] = NULL;
+        }
+        free(iov_rst);
+        iov_rst = NULL;
+
+        return iov_rst;
+    } else {
+        contig_rst = calloc(mdata->buffer_size + 1, sizeof(char));
+
+        if (contig_rst == NULL) {
+            return NULL;
+        }
+        mem_type_memcpy(contig_rst, mdata->buffer, mdata->buffer_size);
+
+        return contig_rst;
+    }
+}
+
+void free_copied_buffer(struct data_meta *mdata, void *msg)
+{
+    char **pmsg        = NULL;
+    size_t dt_iov_idx  = 0;
+
+    if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+        mdata->data_type == DATATYPE_IOV) {
+        pmsg = msg;
+
+        for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
+            free(pmsg[dt_iov_idx]);
+            pmsg[dt_iov_idx] = NULL;
+        }
+    }
+    free(msg);
+}
+
 static void tag_recv_cb(void *request, ucs_status_t status,
                         const ucp_tag_recv_info_t *info, void *user_data)
 {
