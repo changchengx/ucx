@@ -111,6 +111,58 @@ static struct {
  */
 static void usage(void);
 
+void buffer_free(data_meta_t *mdata)
+{
+    size_t dt_iov_idx    = 0;
+    ucp_dt_iov_t *dt_iov = NULL;
+
+    if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+        mdata->data_type == DATATYPE_IOV) {
+        dt_iov = mdata->buffer;
+
+        for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
+            if (dt_iov[dt_iov_idx].buffer == NULL) {
+                continue;
+            }
+            mem_type_free(dt_iov[dt_iov_idx].buffer);
+            dt_iov[dt_iov_idx].buffer = NULL;
+            dt_iov[dt_iov_idx].length = 0;
+        }
+    }
+    mem_type_free(mdata->buffer);
+    mdata->buffer = NULL;
+}
+
+int buffer_malloc(data_meta_t *mdata)
+{
+    ucp_dt_iov_t *dt_iov    = NULL;
+    size_t dt_iov_idx       = 0;
+
+    if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+        mdata->data_type == DATATYPE_IOV) {
+        mdata->buffer = calloc(mdata->buffer_size, sizeof(ucp_dt_iov_t));
+        dt_iov        = mdata->buffer;
+
+        for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
+            dt_iov[dt_iov_idx].length = mdata->iov_vals[dt_iov_idx];
+            dt_iov[dt_iov_idx].buffer = mem_type_malloc(
+                    dt_iov[dt_iov_idx].length);
+            if (dt_iov[dt_iov_idx].buffer == NULL) {
+                buffer_free(mdata);
+                break;
+            }
+            mem_type_memset(dt_iov[dt_iov_idx].buffer, 0,
+                            dt_iov[dt_iov_idx].length);
+        }
+    } else {
+        mdata->buffer = mem_type_malloc(mdata->buffer_size);
+        mem_type_memset(mdata->buffer, 0, mdata->buffer_size);
+    }
+    CHKERR_ACTION(mdata->buffer == NULL, "allocate memory\n", return -1;);
+
+    return 0;
+}
+
 static void tag_recv_cb(void *request, ucs_status_t status,
                         const ucp_tag_recv_info_t *info, void *user_data)
 {
