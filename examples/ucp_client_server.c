@@ -251,11 +251,11 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
     if (request == NULL) {
         return UCS_OK;
     }
-    
+
     if (UCS_PTR_IS_ERR(request)) {
         return UCS_PTR_STATUS(request);
     }
-    
+
     while (ctx->complete == 0) {
         ucp_worker_progress(ucp_worker);
     }
