@@ -380,20 +380,47 @@ static ucs_status_t start_client(ucp_worker_h ucp_worker, const char *ip,
  * Print the received message on the server side or the sent data on the client
  * side.
  */
-static void print_result(int is_server, char *msg_str, int current_iter)
+static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
 {
-    if (is_server) {
+    char **msg = NULL;
+    size_t idx = 0;
+
+    if (mdata->is_server) {
         printf("Server: iteration #%d\n", (current_iter + 1));
         printf("UCX data message was received\n");
         printf("\n\n----- UCP TEST SUCCESS -------\n\n");
-        printf("%s", msg_str);
-        printf("\n\n------------------------------\n\n");
+
+        if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+            mdata->data_type == DATATYPE_IOV) {
+            msg = pmsg;
+
+            for (idx = 0; idx < mdata->buffer_size; idx++) {
+                printf("%s\n", msg[idx]);
+            }
+        } else {
+            printf("%s\n", (char*)pmsg);
+        }
+
+        printf("\n------------------------------\n\n");
     } else {
         printf("Client: iteration #%d\n", (current_iter + 1));
         printf("\n\n-----------------------------------------\n\n");
-        printf("Client sent message: \n%s.\nlength: %ld\n",
-               (test_string_length != 0) ? msg_str : "<none>",
-               test_string_length);
+
+        if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
+            mdata->data_type == DATATYPE_IOV) {
+            msg = pmsg;
+
+            for (idx = 0; idx < mdata->buffer_size; idx++) {
+                printf("Client sent iov msg: \n%s.\nlength: %ld\n",
+                       (strlen(msg[idx]) != 0) ? msg[idx] : "<none>",
+                       strlen(msg[idx]) + 1);
+            }
+        } else {
+            printf("Client sent message: \n%s.\nlength: %ld\n",
+                   (mdata->buffer_size != 0) ? (char*)pmsg : "<none>",
+                   mdata->buffer_size);
+        }
+
         printf("\n-----------------------------------------\n\n");
     }
 }
@@ -426,17 +453,18 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
 }
 
 static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
-                            test_req_t *ctx, int is_server, void *msg,
-                            int current_iter)
+                            test_req_t *ctx, void *msg, int current_iter)
 {
     ucs_status_t status;
+    data_meta_t *mdata = msg;
     char *msg_str;
     int rst = 0;
 
     status = request_wait(ucp_worker, request, ctx);
     if (status != UCS_OK) {
         fprintf(stderr, "unable to %s UCX message (%s)\n",
-                is_server ? "receive": "send", ucs_status_string(status));
+                mdata->is_server ? "receive" : "send",
+                ucs_status_string(status));
         rst = -1;
         goto release_msg;
     }
@@ -444,20 +472,18 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
     /* Print the output of the first, last and every PRINT_INTERVAL iteration */
     if ((current_iter == 0) || (current_iter == (num_iterations - 1)) ||
         !((current_iter + 1) % (PRINT_INTERVAL))) {
-        msg_str = calloc(1, test_string_length + 1);
+        msg_str = copy_buffer(mdata);
         if (msg_str == NULL) {
             fprintf(stderr, "memory allocation failed\n");
             rst = -1;
             goto release_msg;
         }
-
-        mem_type_memcpy(msg_str, msg, test_string_length);
-        print_result(is_server, msg_str, current_iter);
-        free(msg_str);
+        print_result(mdata, msg_str, current_iter);
+        free_copied_buffer(mdata, msg_str);
     }
 
 release_msg:
-    mem_type_free(msg);
+    buffer_free(mdata);
     return rst;
 }
 
@@ -510,8 +536,7 @@ static int send_recv_stream(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
                                                    &msg_length, &param);
     }
 
-    return request_finalize(ucp_worker, request, &ctx, is_server, msg,
-                            current_iter);
+    return request_finalize(ucp_worker, request, &ctx, &mdata, current_iter);
 }
 
 /**
@@ -560,8 +585,7 @@ static int send_recv_tag(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
                                          &param);
     }
 
-    return request_finalize(ucp_worker, request, &ctx, is_server, msg,
-                            current_iter);
+    return request_finalize(ucp_worker, request, &ctx, &mdata, current_iter);
 }
 
 ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
@@ -668,8 +692,7 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep, int is_server,
                                          msg_length, &params);
     }
 
-    return request_finalize(ucp_worker, request, &ctx, is_server, msg,
-                            current_iter);
+    return request_finalize(ucp_worker, request, &ctx, &mdata, current_iter);
 }
 
 /**
