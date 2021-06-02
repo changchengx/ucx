@@ -53,10 +53,10 @@ static uint16_t server_port    = DEFAULT_PORT;
 static int num_iterations      = DEFAULT_NUM_ITERATIONS;
 
 
-enum {
+typedef enum {
     DATATYPE_IOV    = ucp_dt_make_iov(),
     DATATYPE_CONTIG = ucp_dt_make_contig(1)
-};
+} datatype_t;
 
 
 typedef enum {
