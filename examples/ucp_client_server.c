@@ -253,6 +253,7 @@ void free_copied_buffer(struct data_meta *mdata, void *msg)
             pmsg[dt_iov_idx] = NULL;
         }
     }
+
     free(msg);
 }
 
@@ -783,6 +784,7 @@ static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
                 printf("Invalid message size\n");
                 return -1;
             }
+
             optarg_ptr = optarg_ptr2 + 1;
         }
     }
