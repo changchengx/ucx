@@ -739,13 +739,13 @@ static void usage()
     fprintf(stderr, "\n");
 }
 
-static int parse_message_sizes(const char *opt_arg, data_meta_t *mdata)
+static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
 {
     const char delim = ',';
     size_t token_num, token_it;
     char *optarg_ptr, *optarg_ptr2;
 
-    optarg_ptr = (char*)opt_arg;
+    optarg_ptr = opt_arg;
     token_num  = 0;
 
     while ((optarg_ptr = strchr(optarg_ptr, delim)) != NULL) {
@@ -754,7 +754,7 @@ static int parse_message_sizes(const char *opt_arg, data_meta_t *mdata)
     }
     ++token_num;
 
-    optarg_ptr = (char*)opt_arg;
+    optarg_ptr = opt_arg;
     errno      = 0;
     if (token_num == 1) {
         mdata->data_type   = DATATYPE_CONTIG;
