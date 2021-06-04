@@ -72,7 +72,7 @@ typedef struct data_meta {
     send_recv_type_t send_recv_type;
     ucp_datatype_t   data_type;
     size_t           buffer_size;
-    size_t           *iov_vals;
+    size_t           *iov_sizes;
     void             *buffer;
 } data_meta_t;
 
@@ -147,7 +147,7 @@ int buffer_malloc(data_meta_t *mdata)
         CHKERR_ACTION(dt_iov == NULL, "allocate memory\n", return -1;);
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
-            dt_iov[dt_iov_idx].length = mdata->iov_vals[dt_iov_idx];
+            dt_iov[dt_iov_idx].length = mdata->iov_sizes[dt_iov_idx];
             dt_iov[dt_iov_idx].buffer = mem_type_malloc(
                     dt_iov[dt_iov_idx].length);
             if (dt_iov[dt_iov_idx].buffer == NULL) {
@@ -765,17 +765,18 @@ static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
     } else {
         mdata->data_type   = DATATYPE_IOV;
         mdata->buffer_size = token_num;
-        mdata->iov_vals    = calloc(mdata->buffer_size,
-                                    sizeof(mdata->iov_vals[0]));
-        CHKERR_ACTION(mdata->iov_vals == NULL, "allocate memory\n", return -1;);
+        mdata->iov_sizes    = calloc(mdata->buffer_size,
+                                    sizeof(mdata->iov_sizes[0]));
+        CHKERR_ACTION(mdata->iov_sizes == NULL, "allocate memory\n",
+                      return -1;);
 
         for (token_it = 0; token_it < mdata->buffer_size; ++token_it) {
-            mdata->iov_vals[token_it] = strtoul(optarg_ptr, &optarg_ptr2, 10);
-            if ((ERANGE == errno && ULONG_MAX == mdata->iov_vals[token_it]) ||
-                (errno != 0 && mdata->iov_vals[token_it] == 0) ||
+            mdata->iov_sizes[token_it] = strtoul(optarg_ptr, &optarg_ptr2, 10);
+            if ((ERANGE == errno && ULONG_MAX == mdata->iov_sizes[token_it]) ||
+                (errno != 0 && mdata->iov_sizes[token_it] == 0) ||
                 (optarg_ptr == optarg_ptr2)) {
-                free(mdata->iov_vals);
-                mdata->iov_vals = NULL;
+                free(mdata->iov_sizes);
+                mdata->iov_sizes = NULL;
                 printf("Invalid message size\n");
                 return -1;
             }
@@ -1276,7 +1277,7 @@ int main(int argc, char **argv)
     ucp_cleanup(ucp_context);
 err:
     if (mdata.data_type == DATATYPE_IOV) {
-        free(mdata.iov_vals);
+        free(mdata.iov_sizes);
     }
 
     return ret;
