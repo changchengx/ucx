@@ -115,8 +115,8 @@ static void usage(void);
 
 void buffer_free(data_meta_t *mdata)
 {
-    size_t dt_iov_idx    = 0;
-    ucp_dt_iov_t *dt_iov = NULL;
+    size_t dt_iov_idx;
+    ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == DATATYPE_IOV) {
@@ -137,8 +137,8 @@ void buffer_free(data_meta_t *mdata)
 
 int buffer_malloc(data_meta_t *mdata)
 {
-    ucp_dt_iov_t *dt_iov    = NULL;
-    size_t dt_iov_idx       = 0;
+    ucp_dt_iov_t *dt_iov;
+    size_t dt_iov_idx;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == DATATYPE_IOV) {
@@ -167,9 +167,9 @@ int buffer_malloc(data_meta_t *mdata)
 
 int fill_buffer(data_meta_t *mdata)
 {
-    int rst              = 0;
-    size_t dt_iov_idx    = 0;
-    ucp_dt_iov_t *dt_iov = NULL;
+    int rst = 0;
+    size_t dt_iov_idx;
+    ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == DATATYPE_IOV) {
@@ -192,10 +192,10 @@ int fill_buffer(data_meta_t *mdata)
 
 void *copy_buffer(data_meta_t *mdata)
 {
-    char **iov_rst       = NULL;
-    char *contig_rst     = NULL;
-    size_t dt_iov_idx    = 0;
-    ucp_dt_iov_t *dt_iov = NULL;
+    char **iov_rst;
+    char *contig_rst;
+    size_t dt_iov_idx;
+    ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == DATATYPE_IOV) {
@@ -241,8 +241,8 @@ void *copy_buffer(data_meta_t *mdata)
 
 void free_copied_buffer(struct data_meta *mdata, void *msg)
 {
-    char **pmsg        = NULL;
-    size_t dt_iov_idx  = 0;
+    char **pmsg;
+    size_t dt_iov_idx;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == DATATYPE_IOV) {
@@ -385,8 +385,8 @@ static ucs_status_t start_client(ucp_worker_h ucp_worker, const char *ip,
  */
 static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
 {
-    char **msg = NULL;
-    size_t idx = 0;
+    char **msg;
+    size_t idx;
 
     if (mdata->is_server) {
         printf("Server: iteration #%d\n", (current_iter + 1));
