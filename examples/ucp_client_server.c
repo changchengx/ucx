@@ -161,7 +161,6 @@ int buffer_malloc(data_meta_t *mdata)
         mem_type_memset(mdata->buffer, 0, mdata->buffer_size);
     }
     CHKERR_ACTION(mdata->buffer == NULL, "allocate memory\n", return -1;);
-
     return 0;
 }
 
@@ -186,7 +185,6 @@ int fill_buffer(data_meta_t *mdata)
         rst = generate_test_string(mdata->buffer, mdata->buffer_size);
     }
     CHKERR_ACTION(rst != 0, "generate test string", return -1;);
-
     return rst;
 }
 
@@ -201,7 +199,6 @@ void *copy_buffer(data_meta_t *mdata)
         mdata->data_type == DATATYPE_IOV) {
         dt_iov  = mdata->buffer;
         iov_rst = calloc(mdata->buffer_size, sizeof(char*));
-
         if (iov_rst == NULL) {
             return NULL;
         }
@@ -225,16 +222,13 @@ void *copy_buffer(data_meta_t *mdata)
         }
         free(iov_rst);
         iov_rst = NULL;
-
         return iov_rst;
     } else {
         contig_rst = calloc(mdata->buffer_size + 1, sizeof(char));
-
         if (contig_rst == NULL) {
             return NULL;
         }
         mem_type_memcpy(contig_rst, mdata->buffer, mdata->buffer_size);
-
         return contig_rst;
     }
 }
@@ -1282,5 +1276,6 @@ err:
     if (mdata.data_type == DATATYPE_IOV) {
         free(mdata.iov_vals);
     }
+
     return ret;
 }
