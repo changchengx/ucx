@@ -144,6 +144,7 @@ int buffer_malloc(data_meta_t *mdata)
         mdata->data_type == DATATYPE_IOV) {
         mdata->buffer = calloc(mdata->buffer_size, sizeof(ucp_dt_iov_t));
         dt_iov        = mdata->buffer;
+        CHKERR_ACTION(dt_iov == NULL, "allocate memory\n", return -1;);
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->buffer_size; dt_iov_idx++) {
             dt_iov[dt_iov_idx].length = mdata->iov_vals[dt_iov_idx];
@@ -158,9 +159,9 @@ int buffer_malloc(data_meta_t *mdata)
         }
     } else {
         mdata->buffer = mem_type_malloc(mdata->buffer_size);
+        CHKERR_ACTION(mdata->buffer == NULL, "allocate memory\n", return -1;);
         mem_type_memset(mdata->buffer, 0, mdata->buffer_size);
     }
-    CHKERR_ACTION(mdata->buffer == NULL, "allocate memory\n", return -1;);
     return 0;
 }
 
