@@ -1238,11 +1238,12 @@ int main(int argc, char **argv)
     char *server_addr = NULL;
     char *listen_addr = NULL;
     int ret;
+    data_meta_t mdata;
 
     /* UCP objects */
     ucp_context_h ucp_context;
     ucp_worker_h  ucp_worker;
-    data_meta_t mdata;
+
     memset(&mdata, 0, sizeof(mdata));
     mdata.data_type       = DATATYPE_CONTIG;
     mdata.send_recv_type  = CLIENT_SERVER_SEND_RECV_DEFAULT;
