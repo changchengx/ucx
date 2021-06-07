@@ -153,7 +153,7 @@ int buffer_malloc(data_meta_t *mdata)
                     dt_iov[dt_iov_idx].length);
             if (dt_iov[dt_iov_idx].buffer == NULL) {
                 buffer_free(mdata);
-                break;
+                return -1;
             }
             mem_type_memset(dt_iov[dt_iov_idx].buffer, 0,
                             dt_iov[dt_iov_idx].length);
