@@ -72,7 +72,9 @@ typedef struct data_meta {
     send_recv_type_t send_recv_type;
     ucp_datatype_t   data_type;
     void             *buffer;
+
     size_t           contig_buffer_size;
+
     size_t           iov_num;
     size_t           *iov_sizes;
 } data_meta_t;
