@@ -163,6 +163,7 @@ int buffer_malloc(data_meta_t *mdata)
         CHKERR_ACTION(mdata->buffer == NULL, "allocate memory\n", return -1;);
         mem_type_memset(mdata->buffer, 0, mdata->contig_buffer_size);
     }
+
     return 0;
 }
 
@@ -454,10 +455,10 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
 static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
                             test_req_t *ctx, void *msg, int current_iter)
 {
+    int rst = 0;
+    char *msg_str;
     ucs_status_t status;
     data_meta_t *mdata = msg;
-    char *msg_str;
-    int rst = 0;
 
     status = request_wait(ucp_worker, request, ctx);
     if (status != UCS_OK) {
@@ -838,6 +839,7 @@ static int parse_cmd(int argc, char *const argv[], char **server_addr,
         case 's':
             if (parse_message_sizes(optarg, mdata) != 0) {
                 printf("Wrong string size(s)\n");
+                return UCS_ERR_UNSUPPORTED;
             }
             break;
         case 'm':
@@ -1254,7 +1256,6 @@ int main(int argc, char **argv)
     mdata.data_type          = DATATYPE_CONTIG;
     mdata.send_recv_type     = CLIENT_SERVER_SEND_RECV_DEFAULT;
     mdata.contig_buffer_size = test_string_length;
-
     ret = parse_cmd(argc, argv, &server_addr, &listen_addr, &mdata);
     if (ret != 0) {
         goto err;
