@@ -455,9 +455,9 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
                             test_req_t *ctx, void *msg, int current_iter)
 {
     int ret = 0;
+    data_meta_t *mdata = msg;
     char *msg_str;
     ucs_status_t status;
-    data_meta_t *mdata = msg;
 
     status = request_wait(ucp_worker, request, ctx);
     if (status != UCS_OK) {
