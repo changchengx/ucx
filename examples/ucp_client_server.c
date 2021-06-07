@@ -54,12 +54,6 @@ static int num_iterations      = DEFAULT_NUM_ITERATIONS;
 
 
 typedef enum {
-    DATATYPE_IOV    = ucp_dt_make_iov(),
-    DATATYPE_CONTIG = ucp_dt_make_contig(1)
-} datatype_t;
-
-
-typedef enum {
     CLIENT_SERVER_SEND_RECV_STREAM  = UCS_BIT(0),
     CLIENT_SERVER_SEND_RECV_TAG     = UCS_BIT(1),
     CLIENT_SERVER_SEND_RECV_AM      = UCS_BIT(2),
@@ -122,7 +116,7 @@ void buffer_free(data_meta_t *mdata)
     ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-        mdata->data_type == DATATYPE_IOV) {
+        mdata->data_type == UCP_DATATYPE_IOV) {
         dt_iov = mdata->buffer;
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
@@ -144,7 +138,7 @@ int buffer_malloc(data_meta_t *mdata)
     size_t dt_iov_idx;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-        mdata->data_type == DATATYPE_IOV) {
+        mdata->data_type == UCP_DATATYPE_IOV) {
         mdata->buffer = calloc(mdata->iov_num, sizeof(ucp_dt_iov_t));
         dt_iov        = mdata->buffer;
         CHKERR_ACTION(dt_iov == NULL, "allocate memory\n", return -1;);
@@ -176,7 +170,7 @@ int fill_buffer(data_meta_t *mdata)
     ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-        mdata->data_type == DATATYPE_IOV) {
+        mdata->data_type == UCP_DATATYPE_IOV) {
         dt_iov = mdata->buffer;
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
@@ -201,7 +195,7 @@ void *copy_buffer(data_meta_t *mdata)
     ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-        mdata->data_type == DATATYPE_IOV) {
+        mdata->data_type == UCP_DATATYPE_IOV) {
         dt_iov  = mdata->buffer;
         iov_data_buffer = calloc(mdata->iov_num, sizeof(char*));
         if (iov_data_buffer == NULL) {
@@ -247,7 +241,7 @@ void free_copied_buffer(struct data_meta *mdata, void *msg)
     size_t dt_iov_idx;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-        mdata->data_type == DATATYPE_IOV) {
+        mdata->data_type == UCP_DATATYPE_IOV) {
         pmsg = msg;
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
@@ -396,7 +390,7 @@ static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
         printf("\n\n----- UCP TEST SUCCESS -------\n\n");
 
         if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-            mdata->data_type == DATATYPE_IOV) {
+            mdata->data_type == UCP_DATATYPE_IOV) {
             msg = pmsg;
 
             for (idx = 0; idx < mdata->iov_num; idx++) {
@@ -412,7 +406,7 @@ static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
         printf("\n\n-----------------------------------------\n\n");
 
         if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
-            mdata->data_type == DATATYPE_IOV) {
+            mdata->data_type == UCP_DATATYPE_IOV) {
             msg = pmsg;
 
             for (idx = 0; idx < mdata->iov_num; idx++) {
@@ -511,7 +505,7 @@ static int send_recv_stream(ucp_worker_h ucp_worker, ucp_ep_h ep,
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
 
     msg        = mdata->buffer;
-    msg_length = mdata->data_type == DATATYPE_IOV ? mdata->iov_num :
+    msg_length = mdata->data_type == UCP_DATATYPE_IOV ? mdata->iov_num :
                  mdata->contig_buffer_size;
 
     ctx.complete       = 0;
@@ -559,7 +553,7 @@ static int send_recv_tag(ucp_worker_h ucp_worker, ucp_ep_h ep,
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
 
     msg        = mdata->buffer;
-    msg_length = mdata->data_type == DATATYPE_IOV ? mdata->iov_num :
+    msg_length = mdata->data_type == UCP_DATATYPE_IOV ? mdata->iov_num :
                  mdata->contig_buffer_size;
 
     ctx.complete       = 0;
@@ -640,7 +634,7 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep,
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
 
     msg        = mdata->buffer;
-    msg_length = mdata->data_type == DATATYPE_IOV ? mdata->iov_num :
+    msg_length = mdata->data_type == UCP_DATATYPE_IOV ? mdata->iov_num :
                  mdata->contig_buffer_size;
 
     ctx.complete        = 0;
@@ -763,7 +757,7 @@ static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
     optarg_ptr = opt_arg;
     errno      = 0;
     if (token_num == 1) {
-        mdata->data_type   = DATATYPE_CONTIG;
+        mdata->data_type   = UCP_DATATYPE_CONTIG;
         test_string_length = strtoul(optarg_ptr, &optarg_ptr2, 10);
 
         if ((ERANGE == errno && ULONG_MAX == test_string_length) ||
@@ -773,7 +767,7 @@ static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
         }
         mdata->contig_buffer_size = test_string_length;
     } else {
-        mdata->data_type = DATATYPE_IOV;
+        mdata->data_type = UCP_DATATYPE_IOV;
         mdata->iov_num   = token_num;
         mdata->iov_sizes = calloc(mdata->iov_num,
                                   sizeof(mdata->iov_sizes[0]));
@@ -1258,7 +1252,7 @@ int main(int argc, char **argv)
     ucp_worker_h  ucp_worker;
 
     memset(&mdata, 0, sizeof(mdata));
-    mdata.data_type          = DATATYPE_CONTIG;
+    mdata.data_type          = UCP_DATATYPE_CONTIG;
     mdata.send_recv_type     = CLIENT_SERVER_SEND_RECV_DEFAULT;
     mdata.contig_buffer_size = test_string_length;
     ret = parse_cmd(argc, argv, &server_addr, &listen_addr, &mdata);
@@ -1286,7 +1280,7 @@ int main(int argc, char **argv)
     ucp_worker_destroy(ucp_worker);
     ucp_cleanup(ucp_context);
 err:
-    if (mdata.data_type == DATATYPE_IOV) {
+    if (mdata.data_type == UCP_DATATYPE_IOV) {
         free(mdata.iov_sizes);
     }
 
