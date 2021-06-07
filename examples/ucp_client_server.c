@@ -171,7 +171,7 @@ int buffer_malloc(data_meta_t *mdata)
 
 int fill_buffer(data_meta_t *mdata)
 {
-    int rst = 0;
+    int ret = 0;
     size_t dt_iov_idx;
     ucp_dt_iov_t *dt_iov;
 
@@ -180,61 +180,64 @@ int fill_buffer(data_meta_t *mdata)
         dt_iov = mdata->buffer;
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-            rst = generate_test_string(dt_iov[dt_iov_idx].buffer,
+            ret = generate_test_string(dt_iov[dt_iov_idx].buffer,
                                        dt_iov[dt_iov_idx].length);
-            if (rst != 0) {
+            if (ret != 0) {
                 break;
             }
         }
     } else {
-        rst = generate_test_string(mdata->buffer, mdata->contig_buffer_size);
+        ret = generate_test_string(mdata->buffer, mdata->contig_buffer_size);
     }
-    CHKERR_ACTION(rst != 0, "generate test string", return -1;);
-    return rst;
+    CHKERR_ACTION(ret != 0, "generate test string", return -1;);
+    return ret;
 }
 
 void *copy_buffer(data_meta_t *mdata)
 {
-    char **iov_rst;
-    char *contig_rst;
+    char **iov_data_buffer;
+    char *contig_data_buffer;
     size_t dt_iov_idx;
     ucp_dt_iov_t *dt_iov;
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == DATATYPE_IOV) {
         dt_iov  = mdata->buffer;
-        iov_rst = calloc(mdata->iov_num, sizeof(char*));
-        if (iov_rst == NULL) {
+        iov_data_buffer = calloc(mdata->iov_num, sizeof(char*));
+        if (iov_data_buffer == NULL) {
             return NULL;
         }
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-            iov_rst[dt_iov_idx] = calloc(dt_iov[dt_iov_idx].length + 1,
-                                         sizeof(char));
-            if (iov_rst[dt_iov_idx] == NULL) {
+            iov_data_buffer[dt_iov_idx] = calloc(dt_iov[dt_iov_idx].length + 1,
+                                                 sizeof(char));
+            if (iov_data_buffer[dt_iov_idx] == NULL) {
                 break;
             }
-            mem_type_memcpy(iov_rst[dt_iov_idx], dt_iov[dt_iov_idx].buffer,
+            mem_type_memcpy(iov_data_buffer[dt_iov_idx],
+                            dt_iov[dt_iov_idx].buffer,
                             dt_iov[dt_iov_idx].length);
         }
         if (dt_iov_idx == mdata->iov_num) {
-            return iov_rst;
+            return iov_data_buffer;
         }
 
         for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-            free(iov_rst[dt_iov_idx]);
-            iov_rst[dt_iov_idx] = NULL;
+            free(iov_data_buffer[dt_iov_idx]);
+            iov_data_buffer[dt_iov_idx] = NULL;
         }
-        free(iov_rst);
-        iov_rst = NULL;
-        return iov_rst;
+        free(iov_data_buffer);
+        iov_data_buffer = NULL;
+        return iov_data_buffer;
     } else {
-        contig_rst = calloc(mdata->contig_buffer_size + 1, sizeof(char));
-        if (contig_rst == NULL) {
+        contig_data_buffer = calloc(mdata->contig_buffer_size + 1,
+                                    sizeof(char));
+        if (contig_data_buffer == NULL) {
             return NULL;
         }
-        mem_type_memcpy(contig_rst, mdata->buffer, mdata->contig_buffer_size);
-        return contig_rst;
+        mem_type_memcpy(contig_data_buffer, mdata->buffer,
+                        mdata->contig_buffer_size);
+        return contig_data_buffer;
     }
 }
 
@@ -457,7 +460,7 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
 static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
                             test_req_t *ctx, void *msg, int current_iter)
 {
-    int rst = 0;
+    int ret = 0;
     char *msg_str;
     ucs_status_t status;
     data_meta_t *mdata = msg;
@@ -467,7 +470,7 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
         fprintf(stderr, "unable to %s UCX message (%s)\n",
                 mdata->is_server ? "receive" : "send",
                 ucs_status_string(status));
-        rst = -1;
+        ret = -1;
         goto release_msg;
     }
 
@@ -477,7 +480,7 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
         msg_str = copy_buffer(mdata);
         if (msg_str == NULL) {
             fprintf(stderr, "memory allocation failed\n");
-            rst = -1;
+            ret = -1;
             goto release_msg;
         }
         print_result(mdata, msg_str, current_iter);
@@ -486,7 +489,7 @@ static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
 
 release_msg:
     buffer_free(mdata);
-    return rst;
+    return ret;
 }
 
 /**
