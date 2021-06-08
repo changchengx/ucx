@@ -196,7 +196,7 @@ void *copy_buffer(data_meta_t *mdata)
 
     if (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_TAG &&
         mdata->data_type == UCP_DATATYPE_IOV) {
-        dt_iov  = mdata->buffer;
+        dt_iov          = mdata->buffer;
         iov_data_buffer = calloc(mdata->iov_num, sizeof(char*));
         if (iov_data_buffer == NULL) {
             return NULL;
@@ -454,7 +454,7 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
 static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
                             test_req_t *ctx, void *msg, int current_iter)
 {
-    int ret = 0;
+    int ret            = 0;
     data_meta_t *mdata = msg;
     char *msg_str;
     ucs_status_t status;
@@ -505,8 +505,9 @@ static int send_recv_stream(ucp_worker_h ucp_worker, ucp_ep_h ep,
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
 
     msg        = mdata->buffer;
-    msg_length = mdata->data_type == UCP_DATATYPE_IOV ? mdata->iov_num :
-                 mdata->contig_buffer_size;
+    msg_length = mdata->data_type == UCP_DATATYPE_IOV ?
+                        mdata->iov_num :
+                        mdata->contig_buffer_size;
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -553,8 +554,9 @@ static int send_recv_tag(ucp_worker_h ucp_worker, ucp_ep_h ep,
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
 
     msg        = mdata->buffer;
-    msg_length = mdata->data_type == UCP_DATATYPE_IOV ? mdata->iov_num :
-                 mdata->contig_buffer_size;
+    msg_length = mdata->data_type == UCP_DATATYPE_IOV ?
+                        mdata->iov_num :
+                        mdata->contig_buffer_size;
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -634,8 +636,9 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep,
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
 
     msg        = mdata->buffer;
-    msg_length = mdata->data_type == UCP_DATATYPE_IOV ? mdata->iov_num :
-                 mdata->contig_buffer_size;
+    msg_length = mdata->data_type == UCP_DATATYPE_IOV ?
+                        mdata->iov_num :
+                        mdata->contig_buffer_size;
 
     ctx.complete        = 0;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -769,8 +772,7 @@ static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
     } else {
         mdata->data_type = UCP_DATATYPE_IOV;
         mdata->iov_num   = token_num;
-        mdata->iov_sizes = calloc(mdata->iov_num,
-                                  sizeof(mdata->iov_sizes[0]));
+        mdata->iov_sizes = calloc(mdata->iov_num, sizeof(mdata->iov_sizes[0]));
         CHKERR_ACTION(mdata->iov_sizes == NULL, "allocate memory\n",
                       return -1;);
 
@@ -898,8 +900,7 @@ static char* sockaddr_get_port_str(const struct sockaddr_storage *sock_addr,
 }
 
 static int client_server_communication(ucp_worker_h worker, ucp_ep_h ep,
-                                       data_meta_t *mdata,
-                                       int current_iter)
+                                       data_meta_t *mdata, int current_iter)
 {
     int ret;
 
@@ -1061,8 +1062,8 @@ out:
     return status;
 }
 
-static int client_server_do_work(ucp_worker_h ucp_worker, ucp_ep_h ep,
-                                 data_meta_t *mdata)
+static int
+client_server_do_work(ucp_worker_h ucp_worker, ucp_ep_h ep, data_meta_t *mdata)
 {
     int i, ret = 0;
 
