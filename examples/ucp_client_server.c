@@ -760,7 +760,7 @@ static int parse_message_sizes(char *opt_arg, data_meta_t *mdata)
     optarg_ptr = opt_arg;
     errno      = 0;
     if (token_num == 1) {
-        mdata->data_type   = UCP_DATATYPE_CONTIG;
+        mdata->data_type   = ucp_dt_make_contig(1);
         test_string_length = strtoul(optarg_ptr, &optarg_ptr2, 10);
 
         if ((ERANGE == errno && ULONG_MAX == test_string_length) ||
@@ -1253,7 +1253,7 @@ int main(int argc, char **argv)
     ucp_worker_h  ucp_worker;
 
     memset(&mdata, 0, sizeof(mdata));
-    mdata.data_type          = UCP_DATATYPE_CONTIG;
+    mdata.data_type          = ucp_dt_make_contig(1);
     mdata.send_recv_type     = CLIENT_SERVER_SEND_RECV_DEFAULT;
     mdata.contig_buffer_size = test_string_length;
     ret = parse_cmd(argc, argv, &server_addr, &listen_addr, &mdata);
