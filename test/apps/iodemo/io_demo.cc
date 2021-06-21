@@ -2221,16 +2221,23 @@ static int do_client(const options_t& test_opts)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
+    for (int i = 0; i < -1U; i++) {
 
-    DemoClient client(test_opts);
-    if (!client.init()) {
+    DemoClient *client = new DemoClient(test_opts);
+    if (!client->init()) {
         return -1;
     }
 
-    DemoClient::status_t status = client.run();
-    LOG << "Client exit with status '" << DemoClient::get_status_str(status) << "'";
-    return ((status == DemoClient::OK) ||
-            (status == DemoClient::RUNTIME_EXCEEDED)) ? 0 : -1;
+    DemoClient::status_t status = client->run();
+    LOG << "count: " << i << ", "
+        << "Client exit with status '" << DemoClient::get_status_str(status) << "'";
+    delete client;
+    client = NULL;
+    if (status != DemoClient::OK && status != DemoClient::RUNTIME_EXCEEDED) {
+        return -1;
+    }
+    }
+    return 0;
 }
 
 static void print_info(int argc, char **argv)
