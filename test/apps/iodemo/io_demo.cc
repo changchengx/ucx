@@ -1665,6 +1665,7 @@ public:
         long total_iter              = 0;
         long total_prev_iter         = 0;
         op_info_t op_info[IO_OP_MAX] = {{0,0}};
+        uint32_t connected_before    = 0;
 
         while ((total_iter < opts().iter_count) && (_status == OK)) {
             connect_all(is_control_iter(total_iter));
@@ -1678,11 +1679,23 @@ public:
                         << opts().retry_interval << " seconds";
                     sleep(opts().retry_interval);
                     check_time_limit(get_time());
+                    if (connected_before == 1) {
+                        connected_before = 0;
+                        return _status;
+                    }
                 } else {
-                    progress();
+                    int rst = 0;
+                    rst = progress();
+                    if (rst != 0) {
+                        while (progress() != 0) {
+                            continue;
+                        }
+                        return _status;
+                    }
                 }
                 continue;
             }
+            connected_before = 1;
 
             VERBOSE_LOG << " <<<< iteration " << total_iter << " >>>>";
             long conns_window_size = opts().conn_window_size *
