@@ -2294,7 +2294,7 @@ static int do_client(const options_t& test_opts)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
-    for (int i = 0; i < -1U; i++) {
+    for (int i = 0; i < 5; i++) {
 
     DemoClient *client = new DemoClient(test_opts);
     if (!client->init()) {
