@@ -358,6 +358,8 @@ public:
         uint32_t    sn;
         uint8_t     op;
         uint64_t    data_size;
+        pid_t       pid;
+        pid_t       tid;
     } iomsg_t;
 
 protected:
@@ -571,12 +573,15 @@ protected:
             }
         }
 
-        void init(io_op_t op, uint32_t sn, size_t data_size, bool validate) {
+        void init(io_op_t op, uint32_t sn, size_t data_size,
+                  bool validate, pid_t pid, pid_t tid) {
             iomsg_t *m = reinterpret_cast<iomsg_t *>(_buffer);
 
             m->sn        = sn;
             m->op        = op;
             m->data_size = data_size;
+            m->pid = pid;
+            m->tid = tid;
             if (validate) {
                 void *tail       = reinterpret_cast<void*>(m + 1);
                 size_t tail_size = _io_msg_size - sizeof(*m);
@@ -671,9 +676,10 @@ protected:
     }
 
     bool send_io_message(UcxConnection *conn, io_op_t op, uint32_t sn,
+                         pid_t pid, pid_t tid,
                          size_t data_size, bool validate) {
         IoMessage *m = _io_msg_pool.get();
-        m->init(op, sn, data_size, validate);
+        m->init(op, sn, data_size, validate, pid, tid);
         return send_io_message(conn, m);
     }
 
@@ -691,12 +697,24 @@ protected:
 
     void send_data(UcxConnection* conn, const BufferIov &iov, uint32_t sn,
                    UcxCallback* callback = EmptyCallback::get()) {
+        LOG << "start send data, sn: " << sn << ", pid " << conn->get_pid() << ", "
+            << "tid: " << conn->get_tid() << ", "
+            << "tag: " << conn->make_data_tag(conn->rid(), sn);
         send_recv_data(conn, iov, sn, XFER_TYPE_SEND, callback);
+        LOG << "end send data, sn: " << sn << ", pid " << conn->get_pid() << ", "
+            << "tid: " << conn->get_tid() << ", "
+            << "tag: " << conn->make_data_tag(conn->rid(), sn);
     }
 
-    void recv_data(UcxConnection* conn, const BufferIov &iov, uint32_t sn,
+    void recv_data(UcxConnection* conn, const BufferIov &iov, const iomsg_t *msg,
                    UcxCallback* callback = EmptyCallback::get()) {
-        send_recv_data(conn, iov, sn, XFER_TYPE_RECV, callback);
+        LOG << "start recv data, sn: " << msg->sn << ", pid " << msg->pid << ", "
+            << "tid: " << msg->tid << ", "
+            << "tag: " << conn->make_data_tag(conn->id(), msg->sn);
+        send_recv_data(conn, iov, msg->sn, XFER_TYPE_RECV, callback);
+        LOG << "end recv data, sn: " << msg->sn << ", pid " << msg->pid << ", "
+            << "tid: " << msg->tid << ", "
+            << "tag: " << conn->make_data_tag(conn->id(), msg->sn);
     }
 
     static uint32_t get_chunk_cnt(size_t data_size, size_t chunk_size) {
@@ -737,8 +755,10 @@ protected:
 
 private:
     bool send_io_message(UcxConnection *conn, IoMessage *msg) {
-        VERBOSE_LOG << "sending IO " << io_op_names[msg->msg()->op] << ", sn "
-                    << msg->msg()->sn << " size " << sizeof(iomsg_t);
+        LOG << "sending IO " << io_op_names[msg->msg()->op] << ", sn "
+            << msg->msg()->sn << " size " << sizeof(iomsg_t) << ", "
+            << "pid: " << msg->msg()->pid << ", tid: " << msg->msg()->tid << ", "
+            << "tag: " << (conn->make_iomsg_tag(conn->rid(), 0) & ~(UcxContext::IOMSG_TAG));
 
         /* send IO_READ_COMP as a data since the transaction must be matched
          * by sn on receiver side */
@@ -769,14 +789,15 @@ public:
             _iov(NULL), _pool(pool) {
         }
 
-        void init(DemoServer *server, UcxConnection* conn, uint32_t sn,
+        void init(DemoServer *server, UcxConnection* conn, const iomsg_t *msg,
                   BufferIov *iov, long* op_cnt) {
             _server    = server;
             _conn      = conn;
             _op_cnt    = op_cnt;
-            _sn        = sn;
+            _sn        = msg->sn;
             _iov       = iov;
             _chunk_cnt = iov->size();
+            _msg = *msg;
         }
 
         virtual void operator()(ucs_status_t status) {
@@ -787,11 +808,12 @@ public:
             if (status == UCS_OK) {
                 if (_server->opts().use_am) {
                     IoMessage *m = _server->_io_msg_pool.get();
-                    m->init(IO_WRITE_COMP, _sn, 0, _server->opts().validate);
+                    m->init(IO_WRITE_COMP, _sn, 0, _server->opts().validate, 0, 0);
                     _conn->send_am(m->buffer(), _server->opts().iomsg_size,
                                    NULL, 0ul, m);
                 } else {
-                    _server->send_io_message(_conn, IO_WRITE_COMP, _sn, 0,
+                    _server->send_io_message(_conn, IO_WRITE_COMP, _sn,
+                                             _msg.pid, _msg.tid, 0,
                                              _server->opts().validate);
                 }
                 if (_server->opts().validate) {
@@ -814,6 +836,7 @@ public:
         uint32_t                             _sn;
         BufferIov*                           _iov;
         MemoryPool<IoWriteResponseCallback>& _pool;
+        iomsg_t                              _msg;
     };
 
     typedef struct {
@@ -897,7 +920,7 @@ public:
 
         // send response as data
         VERBOSE_LOG << "sending IO read response";
-        send_io_message(conn, IO_READ_COMP, msg->sn, 0, opts().validate);
+        send_io_message(conn, IO_READ_COMP, msg->sn, 0, 0, 0, opts().validate);
     }
 
     void handle_io_am_read_request(UcxConnection* conn, const iomsg_t *msg) {
@@ -905,7 +928,7 @@ public:
         assert(opts().max_data_size >= msg->data_size);
 
         IoMessage *m = _io_msg_pool.get();
-        m->init(IO_READ_COMP, msg->sn, msg->data_size, opts().validate);
+        m->init(IO_READ_COMP, msg->sn, msg->data_size, opts().validate, 0, 0);
 
         BufferIov *iov = _data_buffers_pool.get();
         iov->init(msg->data_size, _data_chunks_pool, msg->sn, opts().validate);
@@ -929,9 +952,9 @@ public:
         IoWriteResponseCallback *w = _callback_pool.get();
 
         iov->init(msg->data_size, _data_chunks_pool, msg->sn, opts().validate);
-        w->init(this, conn, msg->sn, iov, &_curr_state.write_count);
+        w->init(this, conn, msg, iov, &_curr_state.write_count);
 
-        recv_data(conn, *iov, msg->sn, w);
+        recv_data(conn, *iov, msg, w);
     }
 
     void handle_io_am_write_request(UcxConnection* conn, const iomsg_t *msg,
@@ -943,7 +966,7 @@ public:
         IoWriteResponseCallback *w = _callback_pool.get();
 
         iov->init(msg->data_size, _data_chunks_pool, msg->sn, opts().validate);
-        w->init(this, conn, msg->sn, iov, &_curr_state.write_count);
+        w->init(this, conn, msg, iov, &_curr_state.write_count);
 
         assert(iov->size() == 1);
 
@@ -966,8 +989,8 @@ public:
         iomsg_t const *msg = reinterpret_cast<const iomsg_t*>(buffer);
 
         VERBOSE_LOG << "got io message " << io_op_names[msg->op] << " sn "
-                    << msg->sn << " data size " << msg->data_size
-                    << " conn " << conn;
+                    << msg->sn << " data size " << msg->data_size << ", "
+                    << "r pid: " << msg->pid << ", r tid: " << msg->tid;
 
         if (opts().validate) {
             assert(length == opts().iomsg_size);
@@ -1236,7 +1259,7 @@ public:
         size_t data_size           = get_data_size();
         bool validate              = opts().validate;
 
-        if (!send_io_message(server_info.conn, IO_READ, sn, data_size,
+        if (!send_io_message(server_info.conn, IO_READ, sn, 0, 0, data_size,
                              validate)) {
             return 0;
         }
@@ -1249,8 +1272,8 @@ public:
         iov->init(data_size, _data_chunks_pool, sn, validate);
         r->init(this, server_index, sn, validate, iov);
 
-        recv_data(server_info.conn, *iov, sn, r);
-        server_info.conn->recv_data(r->buffer(), opts().iomsg_size, sn, r);
+        //recv_data(server_info.conn, *iov, sn, r);
+        //server_info.conn->recv_data(r->buffer(), opts().iomsg_size, sn, r);
 
         return data_size;
     }
@@ -1262,7 +1285,7 @@ public:
         commit_operation(server_index);
 
         IoMessage *m = _io_msg_pool.get();
-        m->init(IO_READ, sn, data_size, opts().validate);
+        //m->init(IO_READ, sn, data_size, opts().validate);
 
         server_info.conn->send_am(m->buffer(), opts().iomsg_size, NULL, 0, m);
 
@@ -1274,8 +1297,10 @@ public:
         size_t data_size           = get_data_size();
         bool validate              = opts().validate;
 
-        if (!send_io_message(server_info.conn, IO_WRITE, sn, data_size,
-                             validate)) {
+        if (!send_io_message(server_info.conn, IO_WRITE, sn,
+                             server_info.conn->get_pid(),
+                             server_info.conn->get_tid(),
+                             data_size, validate)) {
             return 0;
         }
 
@@ -1302,7 +1327,7 @@ public:
         commit_operation(server_index);
 
         IoMessage *m = _io_msg_pool.get();
-        m->init(IO_WRITE, sn, data_size, validate);
+        //m->init(IO_WRITE, sn, data_size, validate);
 
         BufferIov *iov = _data_buffers_pool.get();
         iov->init(data_size, _data_chunks_pool, sn, validate);
@@ -1344,8 +1369,9 @@ public:
         iomsg_t const *msg = reinterpret_cast<const iomsg_t*>(buffer);
 
         VERBOSE_LOG << "got io message " << io_op_names[msg->op] << " sn "
-                    << msg->sn << " data size " << msg->data_size
-                    << " conn " << conn;
+                    << msg->sn << " data size " << msg->data_size << ", "
+                    << "m pid: " << msg->pid << ", m tid: " << msg->tid << ", "
+                    << "l pid: " << conn->get_pid() << ", l tid: " << conn->get_tid();
 
         if (msg->op >= IO_COMP_MIN) {
             assert(msg->op == IO_WRITE_COMP);

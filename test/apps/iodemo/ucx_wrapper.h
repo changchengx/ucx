@@ -136,6 +136,9 @@ protected:
     // Called when new server connection is accepted
     virtual void dispatch_connection_accepted(UcxConnection* conn);
 
+public:
+    static const ucp_tag_t IOMSG_TAG = 1ull << 63;
+
 private:
     typedef enum {
         WAIT_STATUS_OK,
@@ -149,8 +152,6 @@ private:
     } conn_req_t;
 
     friend class UcxConnection;
-
-    static const ucp_tag_t IOMSG_TAG = 1ull << 63;
 
     static uint32_t get_next_conn_id();
 
@@ -262,6 +263,10 @@ public:
         return _conn_id;
     }
 
+    uint64_t rid() const {
+        return _remote_conn_id;
+    }
+
     ucs_status_t ucx_status() const {
         return _ucx_status;
     }
@@ -276,11 +281,19 @@ public:
 
     void handle_connection_error(ucs_status_t status);
 
-private:
+    pid_t get_pid(void) const {
+        return _pid;
+    }
+
+    pid_t get_tid(void) const {
+        return _tid;
+    }
+
     static ucp_tag_t make_data_tag(uint32_t conn_id, uint32_t sn);
 
     static ucp_tag_t make_iomsg_tag(uint32_t conn_id, uint32_t sn);
 
+private:
     static void stream_send_callback(void *request, ucs_status_t status);
 
     static void stream_recv_callback(void *request, ucs_status_t status,
@@ -334,6 +347,8 @@ private:
     ucs_list_link_t _all_requests;
     ucs_status_t    _ucx_status;
     bool            _use_am;
+    pid_t           _pid;
+    pid_t           _tid;
 };
 
 #endif

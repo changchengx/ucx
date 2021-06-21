@@ -15,6 +15,10 @@
 #include <algorithm>
 #include <limits>
 
+#include <unistd.h>
+#include <sys/syscall.h>
+#define gettid() syscall(SYS_gettid)
+#define getpid() syscall(SYS_getpid)
 
 #define AM_MSG_ID 0
 
@@ -605,7 +609,7 @@ UcxConnection::UcxConnection(UcxContext &context, bool use_am) :
     _ep(NULL),
     _close_request(NULL),
     _ucx_status(UCS_INPROGRESS),
-    _use_am(use_am)
+    _use_am(use_am), _pid(getpid()), _tid(gettid())
 {
     ++_num_instances;
     struct sockaddr_in in_addr = {0};
