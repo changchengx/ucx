@@ -1660,7 +1660,7 @@ public:
         _num_sent      = 0;
         _num_completed = 0;
 
-        uint32_t sn                  = IoDemoRandom::rand<uint32_t>();
+        uint32_t sn                  = 0;
         double prev_time             = get_time();
         long total_iter              = 0;
         long total_prev_iter         = 0;
