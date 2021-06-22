@@ -969,6 +969,9 @@ public:
         VERBOSE_LOG << "got io message " << io_op_names[msg->op] << " sn "
                     << msg->sn << " data size " << msg->data_size
                     << " conn " << conn;
+        if (conn->get_exp_sn() == 0) {
+            conn->set_exp_sn(msg->sn);
+        }
 
         if (opts().validate) {
             assert(length == opts().iomsg_size);
@@ -1526,7 +1529,7 @@ public:
         }
     }
 
-    void connect_all(bool force) {
+    void connect_all(bool force, uint32_t init_sn) {
         if (_active_servers.size() == _server_info.size()) {
             assert(_status == OK);
             // All servers are connected
@@ -1563,6 +1566,7 @@ public:
             server_info.prev_connect_time = curr_time;
             assert(server_info.conn != NULL);
             assert(_status == OK);
+            server_info.conn->set_exp_sn(init_sn);
         }
     }
 
@@ -1603,7 +1607,7 @@ public:
         uint32_t connected_before = 0;
 
         while ((total_iter < opts().iter_count) && (_status == OK)) {
-            connect_all(is_control_iter(total_iter));
+            connect_all(is_control_iter(total_iter), *init_sn);
             if (_status != OK) {
                 break;
             }

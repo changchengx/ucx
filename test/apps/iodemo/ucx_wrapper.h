@@ -249,6 +249,14 @@ public:
 
     void handle_connection_error(ucs_status_t status);
 
+    void set_exp_sn(uint32_t exp_sn) {
+        _exp_sn = exp_sn;
+    }
+
+    uint32_t get_exp_sn(void) const {
+        return _exp_sn;
+    }
+
 private:
     static ucp_tag_t make_data_tag(uint32_t conn_id, uint32_t sn);
 
@@ -306,6 +314,7 @@ private:
     ucs_list_link_t _all_requests;
     ucs_status_t    _ucx_status;
     bool            _use_am;
+    uint32_t        _exp_sn;
 };
 
 #endif

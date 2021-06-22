@@ -339,6 +339,7 @@ void UcxContext::progress_conn_requests()
             // UcxAcceptCallback when connection is established
             conn->accept(conn_request.conn_request,
                          new UcxAcceptCallback(*this, *conn));
+            conn->set_exp_sn(0);
         }
 
         _conn_requests.pop_front();
