@@ -986,6 +986,12 @@ public:
             validate(msg, length);
         }
 
+        if (msg->op == IO_STALL) {
+            // One client found that replied sn is wrong, request server to stall
+            { LOG << " client request server to stall"; }
+            while(1);
+        }
+
         if (msg->op == IO_READ) {
             handle_io_read_request(conn, msg);
         } else if (msg->op == IO_WRITE) {
@@ -1330,6 +1336,13 @@ public:
 
             size_t server_index = get_server_index(conn);
             if (server_index < _server_info.size()) {
+                if (conn->get_exp_sn() != msg->sn) {
+                    send_io_message(conn, IO_STALL, msg->sn, 0, opts().validate);
+                    { LOG << " client self stall"; }
+                    while(1);
+                } else {
+                    conn->set_exp_sn(msg->sn + 1);
+                }
                 handle_operation_completion(server_index, IO_WRITE);
             } else {
                 /* do not increment _num_completed here since we decremented
