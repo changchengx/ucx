@@ -1584,7 +1584,7 @@ public:
         return (iter % 10) == 0;
     }
 
-    status_t run() {
+    status_t run(uint32_t *init_sn) {
         _server_info.resize(opts().servers.size());
         std::for_each(_server_info.begin(), _server_info.end(),
                       reset_server_info);
@@ -1595,7 +1595,7 @@ public:
         _num_sent      = 0;
         _num_completed = 0;
 
-        uint32_t sn                  = IoDemoRandom::rand<uint32_t>();
+        uint32_t sn                  = *init_sn;
         double prev_time             = get_time();
         long total_iter              = 0;
         long total_prev_iter         = 0;
@@ -1615,6 +1615,7 @@ public:
                     sleep(opts().retry_interval);
                     check_time_limit(get_time());
                     if (connected_before == 1) {
+                        *init_sn = *init_sn + _num_completed;
                         connected_before = 0;
                         return _status;
                     }
@@ -1624,6 +1625,7 @@ public:
                         while (progress() != 0) {
                             continue;
                         }
+                        *init_sn = *init_sn + _num_completed;
                         return _status;
                     }
                 }
@@ -2221,6 +2223,7 @@ static int do_client(const options_t& test_opts)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
+    uint32_t init_sn = 0;
     for (int i = 0; i < -1U; i++) {
 
     DemoClient *client = new DemoClient(test_opts);
@@ -2228,7 +2231,7 @@ static int do_client(const options_t& test_opts)
         return -1;
     }
 
-    DemoClient::status_t status = client->run();
+    DemoClient::status_t status = client->run(&init_sn);
     LOG << "count: " << i << ", "
         << "Client exit with status '" << DemoClient::get_status_str(status) << "'";
     delete client;
