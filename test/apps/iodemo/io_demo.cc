@@ -40,8 +40,7 @@ typedef enum {
     IO_OP_MAX,
     IO_COMP_MIN  = IO_OP_MAX,
     IO_READ_COMP = IO_COMP_MIN,
-    IO_WRITE_COMP,
-    IO_STALL
+    IO_WRITE_COMP
 } io_op_t;
 
 static const char *io_op_names[] = {
@@ -934,7 +933,8 @@ public:
 
         if (conn->get_exp_sn() != msg->sn) {
             // Server found recved sn is wrong, request client to stall
-            send_io_message(conn, IO_STALL, msg->sn, 0, opts().validate);
+            { LOG << " server stall exp sn: " << conn->get_exp_sn() << ", recv sn: " << msg->sn; }
+            while(1);
         } else {
             conn->set_exp_sn(msg->sn + 1);
         }
@@ -984,12 +984,6 @@ public:
         if (opts().validate) {
             assert(length == opts().iomsg_size);
             validate(msg, length);
-        }
-
-        if (msg->op == IO_STALL) {
-            // One client found that replied sn is wrong, request server to stall
-            { LOG << " client request server to stall"; }
-            while(1);
         }
 
         if (msg->op == IO_READ) {
@@ -1326,10 +1320,6 @@ public:
         VERBOSE_LOG << "got io message " << io_op_names[msg->op] << " sn "
                     << msg->sn << " data size " << msg->data_size
                     << " conn " << conn;
-        if (msg->op == IO_STALL) {
-            { LOG << " server reqeust client to stall"; }
-            while(1);
-        }
 
         if (msg->op >= IO_COMP_MIN) {
             assert(msg->op == IO_WRITE_COMP);
@@ -1337,8 +1327,7 @@ public:
             size_t server_index = get_server_index(conn);
             if (server_index < _server_info.size()) {
                 if (conn->get_exp_sn() != msg->sn) {
-                    send_io_message(conn, IO_STALL, msg->sn, 0, opts().validate);
-                    { LOG << " client self stall"; }
+                    { LOG << " client self stall exp sn: " << conn->get_exp_sn() << " replied sn " << msg->sn; }
                     while(1);
                 } else {
                     conn->set_exp_sn(msg->sn + 1);
