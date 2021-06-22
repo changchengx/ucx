@@ -1824,6 +1824,7 @@ private:
 
                 server_info.prev_completed[op_id] =
                         server_info.num_completed[op_id];
+                log << " next_sn: " << _server_info[server_index].conn->get_exp_sn();
             }
 
             // Report delta of min/max/total operations for every connection
