@@ -95,7 +95,7 @@ public:
 
     bool listen(const struct sockaddr* saddr, size_t addrlen);
 
-    void progress();
+    int progress();
 
     static const std::string sockaddr_str(const struct sockaddr* saddr,
                                           size_t addrlen);
@@ -168,7 +168,7 @@ private:
 
     void progress_io_message();
 
-    void progress_failed_connections();
+    int progress_failed_connections();
 
     wait_status_t wait_completion(ucs_status_ptr_t status_ptr, const char *title,
                                   double timeout = 1e6);

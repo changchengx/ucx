@@ -190,13 +190,15 @@ bool UcxContext::listen(const struct sockaddr* saddr, size_t addrlen)
     return true;
 }
 
-void UcxContext::progress()
+int UcxContext::progress()
 {
+    int rst = 0;
     ucp_worker_progress(_worker);
     progress_io_message();
     progress_timed_out_conns();
     progress_conn_requests();
-    progress_failed_connections();
+    rst = progress_failed_connections();
+    return rst;
 }
 
 uint32_t UcxContext::get_next_conn_id()
@@ -362,13 +364,16 @@ void UcxContext::progress_io_message()
     recv_io_message();
 }
 
-void UcxContext::progress_failed_connections()
+int UcxContext::progress_failed_connections()
 {
+    int disconnect_audit = 0;
     while (!_failed_conns.empty()) {
         UcxConnection *conn = _failed_conns.front();
         _failed_conns.pop_front();
         dispatch_connection_error(conn);
+        disconnect_audit++;
     }
+    return disconnect_audit;
 }
 
 UcxContext::wait_status_t
