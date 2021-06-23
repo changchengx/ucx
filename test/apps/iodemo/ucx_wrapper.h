@@ -87,6 +87,7 @@ class UcxContext {
     };
 
 public:
+    static int destroy_worker_audit;
     UcxContext(size_t iomsg_size, double connect_timeout, bool use_am);
 
     virtual ~UcxContext();

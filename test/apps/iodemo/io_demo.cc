@@ -2258,6 +2258,7 @@ static int do_client(const options_t& test_opts)
     if (status != DemoClient::OK && status != DemoClient::RUNTIME_EXCEEDED) {
         return -1;
     }
+    assert(DemoClient::destroy_worker_audit == 0);
     }
     return 0;
 }

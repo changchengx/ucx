@@ -107,8 +107,10 @@ UcxContext::UcxContext(size_t iomsg_size, double connect_timeout, bool use_am) :
     _iomsg_buffer(iomsg_size, '\0'), _connect_timeout(connect_timeout),
     _use_am(use_am)
 {
+    destroy_worker_audit++;
 }
 
+int UcxContext::destroy_worker_audit = 0;
 UcxContext::~UcxContext()
 {
     destroy_connections();
@@ -117,6 +119,7 @@ UcxContext::~UcxContext()
     if (_context) {
         ucp_cleanup(_context);
     }
+    destroy_worker_audit--;
 }
 
 bool UcxContext::init()
