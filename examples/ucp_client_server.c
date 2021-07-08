@@ -334,15 +334,21 @@ static ucs_status_t start_client(ucp_worker_h ucp_worker, const char *ip,
 static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
 {
     size_t idx;
-    char **msg = pmsg;
+    size_t am_output;
+    char   **msg = pmsg;
 
     if (mdata->is_server) {
         printf("Server: iteration #%d\n", (current_iter + 1));
         printf("UCX data message was received\n");
         printf("\n\n----- UCP TEST SUCCESS -------\n\n");
 
+        am_output = 0;
         for (idx = 0; idx < mdata->iov_num; idx++) {
-            printf("%s\n", msg[idx]);
+            am_output = printf("%s\n", msg[idx]);
+        }
+        while (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_AM &&
+               am_output < test_string_length) {
+            am_output += printf("%s\n", msg[0] + am_output);
         }
 
         printf("\n------------------------------\n\n");
