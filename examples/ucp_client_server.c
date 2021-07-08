@@ -109,16 +109,16 @@ static void usage(void);
 
 void buffer_free(data_meta_t *mdata)
 {
-    size_t dt_iov_idx;
-    ucp_dt_iov_t *dt_iov = mdata->buffer;
+    size_t       idx;
+    ucp_dt_iov_t *iov = mdata->buffer;
 
-    for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-        if (dt_iov[dt_iov_idx].buffer == NULL) {
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        if (iov[idx].buffer == NULL) {
             continue;
         }
-        mem_type_free(dt_iov[dt_iov_idx].buffer);
-        dt_iov[dt_iov_idx].buffer = NULL;
-        dt_iov[dt_iov_idx].length = 0;
+        mem_type_free(iov[idx].buffer);
+        iov[idx].buffer = NULL;
+        iov[idx].length = 0;
     }
     mem_type_free(mdata->buffer);
     mdata->buffer = NULL;
@@ -126,22 +126,21 @@ void buffer_free(data_meta_t *mdata)
 
 int buffer_malloc(data_meta_t *mdata)
 {
-    ucp_dt_iov_t *dt_iov;
-    size_t dt_iov_idx;
+    size_t       idx;
+    ucp_dt_iov_t *iov;
 
     mdata->buffer = calloc(mdata->iov_num, sizeof(ucp_dt_iov_t));
-    dt_iov        = mdata->buffer;
-    CHKERR_ACTION(dt_iov == NULL, "allocate memory\n", return -1;);
+    iov           = mdata->buffer;
+    CHKERR_ACTION(iov == NULL, "allocate memory\n", return -1;);
 
-    for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-        dt_iov[dt_iov_idx].length = mdata->iov_sizes[dt_iov_idx];
-        dt_iov[dt_iov_idx].buffer = mem_type_malloc(dt_iov[dt_iov_idx].length);
-        if (dt_iov[dt_iov_idx].buffer == NULL) {
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        iov[idx].length = mdata->iov_sizes[idx];
+        iov[idx].buffer = mem_type_malloc(iov[idx].length);
+        if (iov[idx].buffer == NULL) {
             buffer_free(mdata);
             return -1;
         }
-        mem_type_memset(dt_iov[dt_iov_idx].buffer, 0,
-                        dt_iov[dt_iov_idx].length);
+        mem_type_memset(iov[idx].buffer, 0, iov[idx].length);
     }
 
     return 0;
@@ -149,58 +148,56 @@ int buffer_malloc(data_meta_t *mdata)
 
 int fill_buffer(data_meta_t *mdata)
 {
-    int ret = 0;
-    size_t dt_iov_idx;
-    ucp_dt_iov_t *dt_iov = mdata->buffer;
+    size_t       idx;
+    ucp_dt_iov_t *iov = mdata->buffer;
+    int          ret = 0;
 
-    for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-        ret = generate_test_string(dt_iov[dt_iov_idx].buffer,
-                                   dt_iov[dt_iov_idx].length);
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        ret = generate_test_string(iov[idx].buffer, iov[idx].length);
         if (ret != 0) {
             break;
         }
     }
     CHKERR_ACTION(ret != 0, "generate test string", return -1;);
-    return ret;
+    return 0;
 }
 
-void *copy_buffer(data_meta_t *mdata)
+char **copy_buffer(data_meta_t *mdata)
 {
-    char **ret;
-    size_t dt_iov_idx;
-    ucp_dt_iov_t *dt_iov = mdata->buffer;
+    char         **ret;
+    size_t       idx;
+    ucp_dt_iov_t *iov = mdata->buffer;
 
     ret = calloc(mdata->iov_num, sizeof(char*));
     CHKERR_ACTION(ret == NULL, "allocate memory\n", return NULL;);
 
-    for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-        ret[dt_iov_idx] = calloc(dt_iov[dt_iov_idx].length + 1, sizeof(char));
-        if (ret[dt_iov_idx] == NULL) {
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        ret[idx] = calloc(iov[idx].length + 1, sizeof(char));
+        if (ret[idx] == NULL) {
             break;
         }
-        mem_type_memcpy(ret[dt_iov_idx], dt_iov[dt_iov_idx].buffer,
-                        dt_iov[dt_iov_idx].length);
+        mem_type_memcpy(ret[idx], iov[idx].buffer, iov[idx].length);
     }
-    if (dt_iov_idx == mdata->iov_num) {
+    if (idx == mdata->iov_num) {
         return ret;
     }
 
-    for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-        free(ret[dt_iov_idx]);
-        ret[dt_iov_idx] = NULL;
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        free(ret[idx]);
+        ret[idx] = NULL;
     }
     free(ret);
     return NULL;
 }
 
-void free_copied_buffer(struct data_meta *mdata, void *msg)
+void free_copied_buffer(data_meta_t *mdata, void *msg)
 {
-    size_t dt_iov_idx;
-    char **pmsg = msg;
+    size_t idx;
+    char   **pmsg = msg;
 
-    for (dt_iov_idx = 0; dt_iov_idx < mdata->iov_num; dt_iov_idx++) {
-        free(pmsg[dt_iov_idx]);
-        pmsg[dt_iov_idx] = NULL;
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        free(pmsg[idx]);
+        pmsg[idx] = NULL;
     }
     free(msg);
 }
@@ -378,11 +375,11 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
     if (request == NULL) {
         return UCS_OK;
     }
-
+    
     if (UCS_PTR_IS_ERR(request)) {
         return UCS_PTR_STATUS(request);
     }
-
+    
     while (ctx->complete == 0) {
         ucp_worker_progress(ucp_worker);
     }
@@ -396,9 +393,9 @@ static ucs_status_t request_wait(ucp_worker_h ucp_worker, void *request,
 static int request_finalize(ucp_worker_h ucp_worker, test_req_t *request,
                             test_req_t *ctx, void *msg, int current_iter)
 {
-    int ret            = 0;
-    data_meta_t *mdata = msg;
+    int ret = 0;
     char **msg_str;
+    data_meta_t *mdata = msg;
     ucs_status_t status;
 
     status = request_wait(ucp_worker, request, ctx);
@@ -440,16 +437,16 @@ static int send_recv_stream(ucp_worker_h ucp_worker, ucp_ep_h ep,
     test_req_t *request;
     size_t msg_length;
     void *msg;
-    ucp_dt_iov_t *dt_iov;
+    ucp_dt_iov_t *iov;
     test_req_t ctx;
     int ret;
 
     ret = buffer_malloc(mdata);
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
-    dt_iov = mdata->buffer;
+    iov = mdata->buffer;
 
-    msg        = mdata->iov_num == 1 ? dt_iov[0].buffer : mdata->buffer;
-    msg_length = mdata->iov_num == 1 ? dt_iov[0].length : mdata->iov_num;
+    msg        = mdata->iov_num == 1 ? iov[0].buffer : mdata->buffer;
+    msg_length = mdata->iov_num == 1 ? iov[0].length : mdata->iov_num;
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -490,16 +487,16 @@ static int send_recv_tag(ucp_worker_h ucp_worker, ucp_ep_h ep,
     void *request;
     size_t msg_length;
     void *msg;
-    ucp_dt_iov_t *dt_iov;
+    ucp_dt_iov_t *iov;
     test_req_t ctx;
     int ret;
 
     ret = buffer_malloc(mdata);
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
-    dt_iov = mdata->buffer;
+    iov = mdata->buffer;
 
-    msg        = mdata->iov_num == 1 ? dt_iov[0].buffer : mdata->buffer;
-    msg_length = mdata->iov_num == 1 ? dt_iov[0].length : mdata->iov_num;
+    msg        = mdata->iov_num == 1 ? iov[0].buffer : mdata->buffer;
+    msg_length = mdata->iov_num == 1 ? iov[0].length : mdata->iov_num;
 
     ctx.complete       = 0;
     param.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -573,16 +570,16 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep,
     ucp_request_param_t params;
     size_t msg_length;
     void *msg;
-    ucp_dt_iov_t *dt_iov;
+    ucp_dt_iov_t *iov;
     test_req_t ctx;
     int ret;
 
     ret = buffer_malloc(mdata);
     CHKERR_ACTION(ret != 0, "allocate memory\n", return -1;);
-    dt_iov = mdata->buffer;
+    iov = mdata->buffer;
 
-    msg        = mdata->iov_num == 1 ? dt_iov[0].buffer : mdata->buffer;
-    msg_length = mdata->iov_num == 1 ? dt_iov[0].length : mdata->iov_num;
+    msg        = mdata->iov_num == 1 ? iov[0].buffer : mdata->buffer;
+    msg_length = mdata->iov_num == 1 ? iov[0].length : mdata->iov_num;
 
     ctx.complete        = 0;
     params.op_attr_mask = UCP_OP_ATTR_FIELD_CALLBACK |
@@ -1199,8 +1196,8 @@ int main(int argc, char **argv)
 {
     char *server_addr = NULL;
     char *listen_addr = NULL;
-    int ret;
-    data_meta_t mdata;
+    int               ret;
+    data_meta_t       mdata;
 
     /* UCP objects */
     ucp_context_h ucp_context;
