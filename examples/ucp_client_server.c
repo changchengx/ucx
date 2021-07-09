@@ -331,7 +331,6 @@ static ucs_status_t start_client(ucp_worker_h ucp_worker, const char *ip,
 static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
 {
     size_t idx;
-    size_t am_output;
     char   **msg = pmsg;
 
     if (mdata->is_server) {
@@ -339,13 +338,8 @@ static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
         printf("UCX data message was received\n");
         printf("\n\n----- UCP TEST SUCCESS -------\n\n");
 
-        am_output = 0;
         for (idx = 0; idx < mdata->iov_num; idx++) {
-            am_output = printf("%s\n", msg[idx]);
-        }
-        while (mdata->send_recv_type == CLIENT_SERVER_SEND_RECV_AM &&
-               am_output < test_string_length) {
-            am_output += printf("%s\n", msg[0] + am_output);
+            printf("%s\n", msg[idx]);
         }
 
         printf("\n------------------------------\n\n");
@@ -526,6 +520,11 @@ ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
                             void *data, size_t length,
                             const ucp_am_recv_param_t *param)
 {
+    data_meta_t  *mdata;
+    ucp_dt_iov_t *iov;
+    size_t       idx;
+    size_t       offset = 0;
+
     if (length != test_string_length) {
         fprintf(stderr, "received wrong data length %ld (expected %ld)",
                 length, test_string_length);
@@ -552,7 +551,13 @@ ucs_status_t ucp_am_data_cb(void *arg, const void *header, size_t header_length,
      * immediately
      */
     am_data_desc.is_rndv = 0;
-    mem_type_memcpy(am_data_desc.recv_buf, data, length);
+
+    mdata = am_data_desc.recv_buf;
+    iov   = mdata->buffer;
+    for (idx = 0; idx < mdata->iov_num; idx++) {
+        mem_type_memcpy(iov[idx].buffer, (char*)data + offset, iov[idx].length);
+        offset += iov[idx].length;
+    }
 
     return UCS_OK;
 }
@@ -590,7 +595,7 @@ static int send_recv_am(ucp_worker_h ucp_worker, ucp_ep_h ep,
     params.user_data    = &ctx;
 
     if (mdata->is_server) {
-        am_data_desc.recv_buf = msg;
+        am_data_desc.recv_buf = mdata;
 
         /* waiting for AM callback has called */
         while (!am_data_desc.complete) {
@@ -1056,11 +1061,6 @@ static int run_server(ucp_context_h ucp_context, ucp_worker_h ucp_worker,
             for (idx = 0; idx < mdata->iov_num; idx++) {
                 test_string_length += mdata->iov_sizes[idx];
             }
-            free(mdata->buffer);
-            free(mdata->iov_sizes);
-            mdata->iov_num = 1;
-            mdata->iov_sizes = calloc(1, sizeof(mdata->iov_sizes[0]));
-            mdata->iov_sizes[0] = test_string_length;
         }
     }
 
