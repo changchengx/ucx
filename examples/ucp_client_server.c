@@ -51,6 +51,7 @@
 static long test_string_length = 16;
 static uint16_t server_port    = DEFAULT_PORT;
 static int num_iterations      = DEFAULT_NUM_ITERATIONS;
+static int force_contig       = 0;
 
 
 typedef enum {
@@ -332,6 +333,7 @@ static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
 {
     size_t idx;
     char   **msg = pmsg;
+    size_t output_len = 0;
 
     if (mdata->is_server) {
         printf("Server: iteration #%d\n", (current_iter + 1));
@@ -339,7 +341,10 @@ static void print_result(data_meta_t *mdata, void *pmsg, int current_iter)
         printf("\n\n----- UCP TEST SUCCESS -------\n\n");
 
         for (idx = 0; idx < mdata->iov_num; idx++) {
-            printf("%s\n", msg[idx]);
+            output_len = printf("%s\n", msg[idx]);
+        }
+        while (force_contig && output_len <= test_string_length) {
+            output_len += printf("%s\n", msg[0] + output_len);
         }
 
         printf("\n------------------------------\n\n");
@@ -740,7 +745,7 @@ static int parse_cmd(int argc, char *const argv[], char **server_addr,
     int c = 0;
     int port;
 
-    while ((c = getopt(argc, argv, "a:l:p:c:i:s:m:h")) != -1) {
+    while ((c = getopt(argc, argv, "a:l:p:c:i:s:m:Ch")) != -1) {
         switch (c) {
         case 'a':
             mdata->is_server = 0;
@@ -786,6 +791,9 @@ static int parse_cmd(int argc, char *const argv[], char **server_addr,
                 return UCS_ERR_UNSUPPORTED;
             }
             break;
+        case 'C':
+            force_contig = 1;
+            break;
         case 'h':
         default:
             usage();
@@ -796,6 +804,17 @@ static int parse_cmd(int argc, char *const argv[], char **server_addr,
         mdata->iov_num = 1;
         mdata->iov_sizes = calloc(mdata->iov_num, sizeof(mdata->iov_sizes[0]));
         CHKERR_ACTION(mdata->iov_sizes == NULL, "allocate memory\n", return -1;);
+        mdata->iov_sizes[0] = test_string_length;
+    }
+
+    if (force_contig == 1 && mdata->iov_num != 1) {
+        test_string_length = 0;
+        for (int idx = 0; idx < mdata->iov_num; idx++) {
+            test_string_length += mdata->iov_sizes[idx];
+        }
+        free(mdata->iov_sizes);
+        mdata->iov_num = 1;
+        mdata->iov_sizes = calloc(1, sizeof(mdata->iov_sizes[0]));
         mdata->iov_sizes[0] = test_string_length;
     }
 
