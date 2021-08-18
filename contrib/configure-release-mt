@@ -14,3 +14,11 @@ basedir=$(cd $(dirname $0) && pwd)
 $basedir/../contrib/configure-release \
 	--enable-mt \
 	"$@"
+echo "Rel mt build, Start: dump config.h"
+if [ -f ${basedir}/../config.h]; then
+    cat ${basedir}/../config.h
+else
+    ls -l ${basedir}
+    ls -l ${basedir}/../
+fi
+echo "Rel mt build, End: dump config.h"

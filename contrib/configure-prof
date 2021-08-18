@@ -21,3 +21,11 @@ $basedir/../configure \
 	--enable-frame-pointer \
 	--enable-stats \
 	"$@"
+echo "Prof build, Start: dump config.h"
+if [ -f ${basedir}/../config.h]; then
+    cat ${basedir}/../config.h
+else
+    ls -l ${basedir}
+    ls -l ${basedir}/../
+fi
+echo "Prof build, End: dump config.h"

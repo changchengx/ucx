@@ -17,3 +17,11 @@ $basedir/../configure \
 	--disable-assertions \
 	--disable-params-check \
 	"$@"
+echo "Rel build, Start: dump config.h"
+if [ -f ${basedir}/../config.h]; then
+    cat ${basedir}/../config.h
+else
+    ls -l ${basedir}
+    ls -l ${basedir}/../
+fi
+echo "Rel build, End: dump config.h"

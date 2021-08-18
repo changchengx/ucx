@@ -14,3 +14,11 @@ basedir=$(cd $(dirname $0) && pwd)
 $basedir/configure-release \
 	--enable-optimizations \
 	"$@"
+echo "Opt build, Start: dump config.h"
+if [ -f ${basedir}/../config.h]; then
+    cat ${basedir}/../config.h
+else
+    ls -l ${basedir}
+    ls -l ${basedir}/../
+fi
+echo "Opt build, End: dump config.h"
