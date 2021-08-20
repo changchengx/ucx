@@ -83,7 +83,7 @@ public:
 
     virtual ~UcxContext();
 
-    bool init();
+    bool init(uint32_t server_client_id);
 
     bool listen(const struct sockaddr* saddr, size_t addrlen);
 
@@ -102,7 +102,7 @@ protected:
 
     // Called when new IO message is received
     virtual void dispatch_io_message(UcxConnection* conn, const void *buffer,
-                                     size_t length) = 0;
+                                     uint32_t sn, size_t length) = 0;
 
     // Called when there is a fatal failure on the connection
     virtual void dispatch_connection_error(UcxConnection* conn) = 0;
@@ -154,7 +154,7 @@ private:
     wait_status_t wait_completion(ucs_status_ptr_t status_ptr, const char *title,
                                   double timeout = 1e6);
 
-    void recv_io_message();
+    void recv_io_message(uint32_t server_client_id);
 
     void add_connection(UcxConnection *conn);
 
@@ -195,6 +195,9 @@ public:
 
     bool send_data(const void *buffer, size_t length, uint32_t sn,
                    UcxCallback* callback = EmptyCallback::get());
+
+    bool send_data_iov(const void *iov, size_t iov_size, uint32_t sn,
+                       UcxCallback* callback = EmptyCallback::get());
 
     bool recv_data(void *buffer, size_t length, uint32_t sn,
                    UcxCallback* callback = EmptyCallback::get());

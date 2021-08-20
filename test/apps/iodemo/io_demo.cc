@@ -416,12 +416,14 @@ protected:
         SendCompleteCallback(size_t buffer_size,
                              MemoryPool<SendCompleteCallback>& pool) :
             _counter(0), _iov(NULL), _pool(pool) {
+            memset(dt_iov, 0, sizeof(dt_iov));
         }
 
         void init(BufferIov* iov, long* op_counter) {
             _op_counter = op_counter;
-            _counter    = iov->size();
+            _counter    = 1;
             _iov        = iov;
+            memset(dt_iov, 0, sizeof(dt_iov));
             assert(_counter > 0);
         }
 
@@ -435,9 +437,11 @@ protected:
             }
 
             _iov->release();
+            memset(dt_iov, 0, sizeof(dt_iov));
             _pool.put(this);
         }
 
+        ucp_dt_iov_t                      dt_iov[6];
     private:
         long*                             _op_counter;
         size_t                            _counter;
@@ -553,6 +557,8 @@ private:
 protected:
     const options_t                  _test_opts;
     MemoryPool<IoMessage>            _io_msg_pool;
+
+public:
     MemoryPool<SendCompleteCallback> _send_callback_pool;
     MemoryPool<BufferIov>            _data_buffers_pool;
     MemoryPool<Buffer, true>         _data_chunks_pool;
@@ -721,25 +727,20 @@ public:
     }
 
     virtual void dispatch_io_message(UcxConnection* conn, const void *buffer,
-                                     size_t length) {
-        iomsg_t const *msg = reinterpret_cast<const iomsg_t*>(buffer);
+                                     uint32_t sn, size_t length) {
+        BufferIov *iov           = _data_buffers_pool.get();
+        SendCompleteCallback *cb = _send_callback_pool.get();
 
-        VERBOSE_LOG << "got io message " << io_op_names[msg->op] << " sn "
-                    << msg->sn << " data size " << msg->data_size
-                    << " conn " << conn;
-
-        if (opts().validate) {
-            assert(length == opts().iomsg_size);
-            validate(msg, length);
-        }
-
-        if (msg->op == IO_READ) {
-            handle_io_read_request(conn, msg);
-        } else if (msg->op == IO_WRITE) {
-            handle_io_write_request(conn, msg);
-        } else {
-            LOG << "Invalid opcode: " << msg->op;
-        }
+        VERBOSE_LOG << "Server got sn : " << sn << ", len : " << length << ", reply 32B";
+        iov->init(get_data_size(), _data_chunks_pool, sn, 0);
+        cb->init(iov, NULL);
+        iov->operator[](0).resize(16);
+        iov->operator[](1).resize(16);
+        cb->dt_iov[0].buffer = iov->operator[](0).buffer();
+        cb->dt_iov[0].length = iov->operator[](0).size();
+        cb->dt_iov[1].buffer = iov->operator[](1).buffer();
+        cb->dt_iov[1].length = iov->operator[](1).size();
+        conn->send_data_iov(cb->dt_iov, 2, sn, cb);
     }
 
 private:
@@ -924,11 +925,7 @@ public:
         server_info_t& server_info = _server_info[server_index];
         size_t data_size           = get_data_size();
         bool validate              = opts().validate;
-
-        if (!send_io_message(server_info.conn, IO_WRITE, sn, data_size,
-                             validate)) {
-            return 0;
-        }
+        size_t                     buffer_idx;
 
         BufferIov *iov           = _data_buffers_pool.get();
         SendCompleteCallback *cb = _send_callback_pool.get();
@@ -937,10 +934,19 @@ public:
 
         iov->init(data_size, _data_chunks_pool, sn, validate);
         cb->init(iov, NULL);
+        iov->operator[](0).resize(16);
+        iov->operator[](1).resize(100);
+        iov->operator[](2).resize(64);
+        iov->operator[](3).resize(64);
+        iov->operator[](4).resize(64);
+        iov->operator[](5).resize(64);
+        for (buffer_idx = 0; buffer_idx < 6; buffer_idx++) {
+            cb->dt_iov[buffer_idx].buffer = iov->operator[](buffer_idx).buffer();
+            cb->dt_iov[buffer_idx].length = iov->operator[](buffer_idx).size();
+        }
 
-        VERBOSE_LOG << "sending data " << iov << " size "
-                    << data_size << " sn " << sn;
-        send_data(server_info.conn, *iov, sn, cb);
+        VERBOSE_LOG << "Client send sn : " << sn << ", 372B";
+        server_info.conn->send_data_iov(cb->dt_iov, 6, sn, cb);
 
         return data_size;
     }
@@ -962,25 +968,16 @@ public:
     }
 
     virtual void dispatch_io_message(UcxConnection* conn, const void *buffer,
-                                     size_t length) {
-        iomsg_t const *msg = reinterpret_cast<const iomsg_t*>(buffer);
-
-        VERBOSE_LOG << "got io message " << io_op_names[msg->op] << " sn "
-                    << msg->sn << " data size " << msg->data_size
-                    << " conn " << conn;
-
-        if (msg->op >= IO_COMP_MIN) {
-            assert(msg->op == IO_WRITE_COMP);
-
-            size_t server_index = get_server_index(conn);
-            if (server_index < _server_info.size()) {
-                handle_operation_completion(server_index, IO_WRITE);
-            } else {
-                /* do not increment _num_completed here since we decremented
-                 * _num_sent on connection termination */
-                LOG << "got WRITE completion on failed connection";
-            }
-        }
+                                     uint32_t sn, size_t length) {
+       VERBOSE_LOG << "Client got sn : " << sn << ", len : " << length;
+       size_t server_index = get_server_index(conn);
+       if (server_index < _server_info.size()) {
+           handle_operation_completion(server_index, IO_WRITE);
+       } else {
+           /* do not increment _num_completed here since we decremented
+            * _num_sent on connection termination */
+           LOG << "got WRITE completion on failed connection";
+       }
     }
 
     long get_num_uncompleted(const server_info_t& server_info) const {
@@ -1197,7 +1194,7 @@ public:
         _num_sent      = 0;
         _num_completed = 0;
 
-        uint32_t sn                  = IoDemoRandom::rand<uint32_t>();
+        uint32_t sn                  = 0;
         double prev_time             = get_time();
         long total_iter              = 0;
         long total_prev_iter         = 0;
@@ -1741,7 +1738,7 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
 static int do_server(const options_t& test_opts)
 {
     DemoServer server(test_opts);
-    if (!server.init()) {
+    if (!server.init(0)) {
         return -1;
     }
 
@@ -1755,7 +1752,7 @@ static int do_client(const options_t& test_opts)
     LOG << "random seed: " << test_opts.random_seed;
 
     DemoClient client(test_opts);
-    if (!client.init()) {
+    if (!client.init(1)) {
         return -1;
     }
 

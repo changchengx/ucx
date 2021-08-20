@@ -23,6 +23,8 @@ struct ucx_request {
     bool                         completed;
     uint32_t                     conn_id;
     size_t                       recv_length;
+    uint32_t                     server_client_id;
+    uint32_t                     sn;
     ucs_list_link_t              pos;
 };
 
@@ -77,7 +79,7 @@ UcxLog::~UcxLog()
 
 UcxContext::UcxContext(size_t iomsg_size, double connect_timeout) :
     _context(NULL), _worker(NULL), _listener(NULL), _iomsg_recv_request(NULL),
-    _iomsg_buffer(iomsg_size, '\0'), _connect_timeout(connect_timeout)
+    _iomsg_buffer(512, '\0'), _connect_timeout(connect_timeout)
 {
 }
 
@@ -91,7 +93,7 @@ UcxContext::~UcxContext()
     }
 }
 
-bool UcxContext::init()
+bool UcxContext::init(uint32_t server_client_id)
 {
     if (_context && _worker) {
         UCX_LOG << "context is already initialized";
@@ -129,7 +131,7 @@ bool UcxContext::init()
 
     UCX_LOG << "created worker " << _worker;
 
-    recv_io_message();
+    recv_io_message(server_client_id);
     return true;
 }
 
@@ -254,6 +256,7 @@ void UcxContext::iomsg_recv_callback(void *request, ucs_status_t status,
     ucx_request *r = reinterpret_cast<ucx_request*>(request);
     r->completed   = true;
     r->conn_id     = (info->sender_tag & ~IOMSG_TAG) >> 32;
+    r->sn          = (info->sender_tag & ~IOMSG_TAG) & 0xffffffff;
     r->recv_length = info->length;
 }
 
@@ -342,10 +345,11 @@ void UcxContext::progress_io_message()
     } else {
         UcxConnection *conn = iter->second;
         dispatch_io_message(conn, &_iomsg_buffer[0],
+                            _iomsg_recv_request->sn,
                             _iomsg_recv_request->recv_length);
     }
     request_release(_iomsg_recv_request);
-    recv_io_message();
+    recv_io_message(_iomsg_recv_request->server_client_id);
 }
 
 void UcxContext::progress_failed_connections()
@@ -394,7 +398,7 @@ UcxContext::wait_completion(ucs_status_ptr_t status_ptr, const char *title,
     }
 }
 
-void UcxContext::recv_io_message()
+void UcxContext::recv_io_message(uint32_t server_client_id)
 {
     ucs_status_ptr_t status_ptr = ucp_tag_recv_nb(_worker, &_iomsg_buffer[0],
                                                   _iomsg_buffer.size(),
@@ -403,6 +407,7 @@ void UcxContext::recv_io_message()
                                                   iomsg_recv_callback);
     assert(status_ptr != NULL);
     _iomsg_recv_request = reinterpret_cast<ucx_request*>(status_ptr);
+    _iomsg_recv_request->server_client_id = server_client_id;
 }
 
 void UcxContext::add_connection(UcxConnection *conn)
@@ -559,6 +564,18 @@ bool UcxConnection::send_data(const void *buffer, size_t length, uint32_t sn,
 {
     ucp_tag_t tag = make_data_tag(_remote_conn_id, sn);
     return send_common(buffer, length, tag, callback);
+}
+
+bool UcxConnection::send_data_iov(const void *iov, size_t iov_size, uint32_t sn, UcxCallback* callback)
+{
+    ucp_tag_t tag = make_iomsg_tag(_remote_conn_id, sn);
+    if (_ep == NULL) {
+        return false;
+    }
+
+    ucs_status_ptr_t ptr_status = ucp_tag_send_nb(_ep, iov, iov_size, UCP_DATATYPE_IOV, tag, common_request_callback);
+    return process_request("ucp_tag_send_nb", ptr_status, callback);
+
 }
 
 bool UcxConnection::recv_data(void *buffer, size_t length, uint32_t sn,
