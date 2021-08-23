@@ -12,6 +12,7 @@
 #include <string.h>
 #include <assert.h>
 #include <sys/types.h>
+#include <stdlib.h>
 
 #include <unistd.h>
 #include <limits>
@@ -547,14 +548,14 @@ bool UcxConnection::accept(ucp_conn_request_h conn_req)
     return connect_common(ep_params);
 }
 
-bool UcxConnection::send_io_message(const void *buffer, size_t length,
+bool UcxConnection::send_io_message(void *buffer, size_t length,
                                     UcxCallback* callback)
 {
     ucp_tag_t tag = make_iomsg_tag(_remote_conn_id, 0);
     return send_common(buffer, length, tag, callback);
 }
 
-bool UcxConnection::send_data(const void *buffer, size_t length, uint32_t sn,
+bool UcxConnection::send_data(void *buffer, size_t length, uint32_t sn,
                               UcxCallback* callback)
 {
     ucp_tag_t tag = make_data_tag(_remote_conn_id, sn);
@@ -754,15 +755,20 @@ bool UcxConnection::connect_common(ucp_ep_params_t& ep_params)
     return true;
 }
 
-bool UcxConnection::send_common(const void *buffer, size_t length, ucp_tag_t tag,
+bool UcxConnection::send_common(void *buffer, size_t length, ucp_tag_t tag,
                                 UcxCallback* callback)
 {
+    //ignore memleak here, only for BW measure under IOV with single segment
+    ucp_dt_iov_t *iov = (ucp_dt_iov_t*)(malloc(sizeof(ucp_dt_iov_t)));
+    iov->buffer = buffer;
+    iov->length = length;
+
     if (_ep == NULL) {
         return false;
     }
 
-    ucs_status_ptr_t ptr_status = ucp_tag_send_nb(_ep, buffer, length,
-                                                  ucp_dt_make_contig(1), tag,
+    ucs_status_ptr_t ptr_status = ucp_tag_send_nb(_ep, iov, 1,
+                                                  UCP_DATATYPE_IOV, tag,
                                                   common_request_callback);
     return process_request("ucp_tag_send_nb", ptr_status, callback);
 }

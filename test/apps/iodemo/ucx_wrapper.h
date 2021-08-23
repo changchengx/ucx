@@ -190,10 +190,10 @@ public:
 
     bool accept(ucp_conn_request_h conn_req);
 
-    bool send_io_message(const void *buffer, size_t length,
+    bool send_io_message(void *buffer, size_t length,
                          UcxCallback* callback = EmptyCallback::get());
 
-    bool send_data(const void *buffer, size_t length, uint32_t sn,
+    bool send_data(void *buffer, size_t length, uint32_t sn,
                    UcxCallback* callback = EmptyCallback::get());
 
     bool recv_data(void *buffer, size_t length, uint32_t sn,
@@ -232,7 +232,7 @@ private:
 
     bool connect_common(ucp_ep_params_t& ep_params);
 
-    bool send_common(const void *buffer, size_t length, ucp_tag_t tag,
+    bool send_common(void *buffer, size_t length, ucp_tag_t tag,
                      UcxCallback* callback);
 
     void request_started(ucx_request *r);
