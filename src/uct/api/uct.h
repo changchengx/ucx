@@ -874,7 +874,7 @@ enum uct_ep_connect_params_field {
  * @ingroup UCT_RESOURCE
  * @brief Process Per Node (PPN) bandwidth specification: f(ppn) = dedicated + shared / ppn
  *
- *  This structure specifies a function which is used as basis for bandwidth
+ * This structure specifies a function which is used as basis for bandwidth
  * estimation of various UCT operations. This information can be used to select
  * the best performing combination of UCT operations.
  */
