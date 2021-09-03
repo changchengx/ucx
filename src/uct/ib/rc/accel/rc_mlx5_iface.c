@@ -937,7 +937,7 @@ static uct_iface_ops_t uct_rc_mlx5_iface_tl_ops = {
     .iface_get_address        = uct_rc_mlx5_iface_get_address,
     .iface_get_device_address = uct_ib_iface_get_device_address,
     .iface_is_reachable       = uct_rc_mlx5_iface_is_reachable
-    };
+};
 
 static ucs_status_t
 uct_rc_mlx5_query_tl_devices(uct_md_h md, uct_tl_device_resource_t **tl_devices_p,

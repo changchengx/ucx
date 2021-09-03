@@ -1792,7 +1792,7 @@ static void ucp_worker_destroy_mpools(ucp_worker_h worker)
 }
 
 /* All the ucp endpoints will share the configurations. No need for every ep to
- * have it's own configuration (to save memory footprint). Same config can be used
+ * have its own configuration (to save memory footprint). Same config can be used
  * by different eps.
  * A 'key' identifies an entry in the ep_config array. An entry holds the key and
  * additional configuration parameters and thresholds.
