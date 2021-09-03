@@ -874,6 +874,7 @@ static ucs_status_t uct_ib_mlx5dv_check_dc(uct_ib_device_t *dev)
     struct ibv_qp_init_attr_ex qp_attr = {};
     struct mlx5dv_qp_init_attr dv_attr = {};
     struct ibv_qp_attr attr = {};
+    struct ibv_ece ece = {};
     struct ibv_srq *srq;
     struct ibv_pd *pd;
     struct ibv_cq *cq;
@@ -935,6 +936,12 @@ static ucs_status_t uct_ib_mlx5dv_check_dc(uct_ib_device_t *dev)
         ucs_debug("failed to ibv_modify_qp(DCT, INIT) on %s: %m",
                   uct_ib_device_name(dev));
         goto err;
+    }
+
+    /* ibv_set_ece check whether ECE is supported */
+    if ((ibv_query_ece(qp, &ece) == 0) && (ibv_set_ece(qp, &ece) == 0) &&
+        (ece.vendor_id = dev->pci_id.vendor)) {
+        dev->flags |= UCT_IB_DEVICE_FLAG_ECE;
     }
 
     /* always set global address parameters, in case the port is RoCE or SRIOV */
