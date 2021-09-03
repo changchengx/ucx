@@ -614,18 +614,14 @@ ucs_status_t ucp_ep_init_create_wireup(ucp_ep_h ep, unsigned ep_init_flags,
     ucp_ep_config_key_reset(&key);
     ucp_ep_config_key_set_err_mode(&key, ep_init_flags);
 
-    key.num_lanes           = 1;
+    key.num_lanes = 1;
     /* all operations will use the first lane, which is a stub endpoint before
      * reconfiguration */
-    key.am_lane             = 0;
-    if (ucp_ep_init_flags_has_cm(ep_init_flags)) {
-        key.cm_lane         = 0;
-        /* Send keepalive on wireup_ep (which will send on aux_ep) */
-        if (ep_init_flags & UCP_EP_INIT_ERR_MODE_PEER_FAILURE) {
-            key.ep_check_map |= UCS_BIT(key.cm_lane);
-        }
-    } else {
-        key.wireup_msg_lane = 0;
+    key.am_lane   = 0;
+    key.cm_lane   = 0;
+    /* Send keepalive on wireup_ep (which will send on aux_ep) */
+    if (ep_init_flags & UCP_EP_INIT_ERR_MODE_PEER_FAILURE) {
+        key.ep_check_map   |= UCS_BIT(key.cm_lane);
     }
 
     status = ucp_worker_get_ep_config(ep->worker, &key, 0, &ep->cfg_index);
@@ -705,8 +701,7 @@ static ucs_status_t ucp_ep_create_to_sock_addr(ucp_worker_h worker,
 
     /* allocate endpoint */
     ucs_sockaddr_str(params->sockaddr.addr, peer_name, sizeof(peer_name));
-    ep_init_flags = ucp_ep_init_flags(worker, params) |
-                    ucp_cm_ep_init_flags(params);
+    ep_init_flags = ucp_ep_init_flags(worker, params);
 
     status = ucp_worker_create_ep(worker, ep_init_flags, peer_name,
                                   "from api call", &ep);

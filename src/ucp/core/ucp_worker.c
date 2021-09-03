@@ -1867,7 +1867,6 @@ ucp_worker_get_ep_config(ucp_worker_h worker, const ucp_ep_config_key_t *key,
                                                  tl_info, sizeof(tl_info)));
     }
 
-
 out:
     *cfg_index_p = ep_cfg_index;
     return UCS_OK;
