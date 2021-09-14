@@ -596,6 +596,16 @@ ucs_status_t uct_ep_get_address(uct_ep_h ep, uct_ep_addr_t *addr)
     return ep->iface->ops.ep_get_address(ep, addr);
 }
 
+ucs_status_t uct_ep_get_ece(uct_ep_h ep, uint32_t *ibv_ece)
+{
+    return ep->iface->ops.ep_get_ece(ep, ibv_ece);
+}
+
+ucs_status_t uct_ep_set_ece(uct_ep_h ep, uint32_t ibv_ece)
+{
+    return ep->iface->ops.ep_set_ece(ep, ibv_ece);
+}
+
 ucs_status_t uct_ep_connect_to_ep(uct_ep_h ep, const uct_device_addr_t *dev_addr,
                                   const uct_ep_addr_t *ep_addr)
 {

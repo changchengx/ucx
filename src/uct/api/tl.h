@@ -231,6 +231,10 @@ typedef void         (*uct_ep_destroy_func_t)(uct_ep_h ep);
 typedef ucs_status_t (*uct_ep_get_address_func_t)(uct_ep_h ep,
                                                   uct_ep_addr_t *addr);
 
+typedef ucs_status_t (*uct_ep_get_ece_func_t)(uct_ep_h ep, uint32_t *ibv_ece);
+
+typedef ucs_status_t (*uct_ep_set_ece_func_t)(uct_ep_h ep, uint32_t ibv_ece);
+
 typedef ucs_status_t (*uct_ep_connect_to_ep_func_t)(uct_ep_h ep,
                                                     const uct_device_addr_t *dev_addr,
                                                     const uct_ep_addr_t *ep_addr);
@@ -346,6 +350,8 @@ typedef struct uct_iface_ops {
     uct_cm_ep_conn_notify_func_t        cm_ep_conn_notify;
     uct_ep_destroy_func_t               ep_destroy;
     uct_ep_get_address_func_t           ep_get_address;
+    uct_ep_get_ece_func_t               ep_get_ece;
+    uct_ep_set_ece_func_t               ep_set_ece;
     uct_ep_connect_to_ep_func_t         ep_connect_to_ep;
     uct_iface_accept_func_t             iface_accept;
     uct_iface_reject_func_t             iface_reject;

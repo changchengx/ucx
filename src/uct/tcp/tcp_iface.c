@@ -408,6 +408,10 @@ static uct_iface_ops_t uct_tcp_iface_ops = {
     .ep_create                = uct_tcp_ep_create,
     .ep_destroy               = uct_tcp_ep_destroy,
     .ep_get_address           = uct_tcp_ep_get_address,
+    .ep_get_ece               = (uct_ep_get_ece_func_t)
+                                ucs_empty_function_return_unsupported,
+    .ep_set_ece               = (uct_ep_set_ece_func_t)
+                                ucs_empty_function_return_unsupported,
     .ep_connect_to_ep         = uct_tcp_ep_connect_to_ep,
     .iface_flush              = uct_tcp_iface_flush,
     .iface_fence              = uct_base_iface_fence,

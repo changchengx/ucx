@@ -104,6 +104,8 @@ UCP_PROXY_EP_DEFINE_OP(ucs_status_t, flush, unsigned, uct_completion_t*)
 UCP_PROXY_EP_DEFINE_OP(ucs_status_t, fence, unsigned)
 UCP_PROXY_EP_DEFINE_OP(ucs_status_t, check, unsigned, uct_completion_t*)
 UCP_PROXY_EP_DEFINE_OP(ucs_status_t, get_address, uct_ep_addr_t*)
+UCP_PROXY_EP_DEFINE_OP(ucs_status_t, get_ece, uint32_t*)
+UCP_PROXY_EP_DEFINE_OP(ucs_status_t, set_ece, uint32_t)
 UCP_PROXY_EP_DEFINE_OP(ucs_status_t, connect_to_ep, const uct_device_addr_t*,
                        const uct_ep_addr_t*)
 static UCS_CLASS_DEFINE_NAMED_DELETE_FUNC(ucp_proxy_ep_destroy, ucp_proxy_ep_t,
@@ -155,6 +157,8 @@ UCS_CLASS_INIT_FUNC(ucp_proxy_ep_t, const uct_iface_ops_t *ops, ucp_ep_h ucp_ep,
     UCP_PROXY_EP_SET_OP(ep_check);
     UCP_PROXY_EP_SET_OP(ep_destroy);
     UCP_PROXY_EP_SET_OP(ep_get_address);
+    UCP_PROXY_EP_SET_OP(ep_get_ece);
+    UCP_PROXY_EP_SET_OP(ep_set_ece);
     UCP_PROXY_EP_SET_OP(ep_connect_to_ep);
 
     self->iface.ops.iface_tag_recv_zcopy     = (uct_iface_tag_recv_zcopy_func_t)ucp_proxy_ep_fatal;
