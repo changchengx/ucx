@@ -564,7 +564,10 @@ uct_rdmacm_cm_ep_send_priv_data(uct_rdmacm_cm_ep_t *cep, const void *priv_data,
         ucs_trace("%s rdma_connect on cm_id %p",
                   uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
                   cep->id);
-        if (rdma_connect(cep->id, &conn_param)) {
+        if (rdma_set_local_ece(cep->id, &cep->ece) != 0) {
+            status = UCS_ERR_IO_ERROR;
+        }
+        if ((status != UCS_OK) || rdma_connect(cep->id, &conn_param)) {
             uct_cm_ep_peer_error(&cep->super,
                                  "rdma_connect(on id=%p) failed: %m", cep->id);
             status = UCS_ERR_IO_ERROR;
