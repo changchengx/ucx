@@ -9,6 +9,7 @@
 #endif
 
 #include "rdmacm_cm_ep.h"
+#include <infiniband/verbs.h>
 #include <uct/ib/base/ib_iface.h>
 #include <uct/ib/mlx5/dv/ib_mlx5_ifc.h>
 #include <uct/ib/mlx5/ib_mlx5.h>
@@ -460,6 +461,37 @@ static ucs_status_t uct_rdmacm_cm_id_to_dev_addr(uct_rdmacm_cm_t *cm,
     return UCS_OK;
 }
 
+static ucs_status_t
+uct_rdmacm_get_oob_ece(struct rdma_cm_id *cm_id,
+                       uct_cm_remote_data_t *remote_data)
+{
+    struct ibv_ece ece = {};
+
+    ucs_assert(cm_id != NULL);
+
+    rdma_get_remote_ece(cm_id, &ece);
+
+    if ((ece.vendor_id & UCS_MASK(16)) == 0xffff) {
+        remote_data->ece = 0;
+        ucs_debug("cm_id %p, no effective oob ece", cm_id);
+        return UCS_OK;
+    } else if (ece.vendor_id == 0) {
+      /* Old UCX version won't call rdma_set_local_ece */
+        remote_data->ece = 0;
+        ucs_warn("cm_id %p, connect from UCX without ECE feature", cm_id);
+        return UCS_OK;
+    } else if (ece.vendor_id != UCT_IB_VENDOR_ID_MLNX) {
+        ucs_error("ECE is not supported by vendor : 0x%x", ece.vendor_id);
+        return UCS_ERR_IO_ERROR;
+    }
+
+    remote_data->field_mask |= UCT_CM_REMOTE_DATA_FIELD_OOB_ECE;
+    remote_data->ece = ece.options;
+    ucs_debug("cm_id %p, oob ece : 0x%x", cm_id, remote_data->ece);
+
+    return UCS_OK;
+}
+
 static void
 uct_rdmacm_cm_handle_event_connect_request(uct_rdmacm_cm_t *cm,
                                            struct rdma_cm_event *event)
@@ -493,6 +525,11 @@ uct_rdmacm_cm_handle_event_connect_request(uct_rdmacm_cm_t *cm,
     remote_data.dev_addr_length       = addr_length;
     remote_data.conn_priv_data        = hdr + 1;
     remote_data.conn_priv_data_length = hdr->length;
+
+    status = uct_rdmacm_get_oob_ece(event->id, &remote_data);
+    if (status != UCS_OK) {
+        goto err;
+    }
 
     client_saddr.addr = rdma_get_peer_addr(event->id);
 
