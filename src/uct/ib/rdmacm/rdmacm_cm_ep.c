@@ -684,6 +684,21 @@ out:
     return status;
 }
 
+ucs_status_t uct_rdmacm_cm_ep_set_ece(uct_ep_h ep, uint32_t ibv_ece)
+{
+    uct_rdmacm_cm_ep_t *cep = ucs_derived_of(ep, uct_rdmacm_cm_ep_t);
+
+    if (ibv_ece == 0) {
+        cep->ece.vendor_id = 0xffffffff;
+    } else {
+        cep->ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
+        cep->ece.options   = ibv_ece;
+        cep->ece.comp_mask = 0;
+    }
+
+    return UCS_OK;
+}
+
 UCS_CLASS_INIT_FUNC(uct_rdmacm_cm_ep_t, const uct_ep_params_t *params)
 {
     ucs_status_t status;
@@ -691,12 +706,15 @@ UCS_CLASS_INIT_FUNC(uct_rdmacm_cm_ep_t, const uct_ep_params_t *params)
 
     UCS_CLASS_CALL_SUPER_INIT(uct_cm_base_ep_t, params);
 
-    self->qp     = NULL;
-    self->qpn    = 0;
-    self->blk    = NULL;
-    self->flags  = 0;
-    self->status = UCS_OK;
-    self->id     = NULL;
+    self->qp            = NULL;
+    self->qpn           = 0;
+    self->blk           = NULL;
+    self->flags         = 0;
+    self->status        = UCS_OK;
+    self->id            = NULL;
+    self->ece.vendor_id = 0xffffffff;
+    self->ece.options   = 0;
+    self->ece.comp_mask = 0;
 
     if (params->field_mask & UCT_EP_PARAM_FIELD_SOCKADDR) {
         status = uct_rdamcm_cm_ep_client_init(self, params);
