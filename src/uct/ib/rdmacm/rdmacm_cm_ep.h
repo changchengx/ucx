@@ -17,6 +17,7 @@ typedef struct uct_rdmacm_cm_ep {
     struct rdma_cm_id                *id;  /* The rdmacm id that is created per this ep */
     struct ibv_qp                    *qp;  /* Dummy qp used for generating a unique qp_num */
     uint32_t                         qpn;  /* Reserved qp number */
+    uct_ibv_ece_t                    ece;
     uct_rdmacm_cm_reserved_qpn_blk_t *blk; /* The pointer of used qpn blk */
     uint8_t                          flags;
     ucs_status_t                     status;
