@@ -197,6 +197,14 @@ ucs_status_t ucp_address_unpack(ucp_worker_h worker, const void *buffer,
 
 
 /**
+ * Check whether OOB ECE is required besides buffer data
+ *
+ * @param [in] buffer with address header to be checked.
+ */
+ucs_status_t ucp_address_oob_ece(const void *buffer);
+
+
+/**
  * Unpack worker unique id from the given address.
  *
  * @param [in] address Worker address.

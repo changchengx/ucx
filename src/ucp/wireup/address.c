@@ -128,6 +128,7 @@ typedef struct {
 
 #define UCP_ADDRESS_HEADER_VERSION_MASK     UCS_MASK(4) /* Version - 4 bits */
 #define UCP_ADDRESS_HEADER_FLAG_DEBUG_INFO  UCS_BIT(4)  /* Address has debug info */
+#define UCP_ADDRESS_HEADER_FLAG_ECE         UCS_BIT(5)  /* Address has OOB ECE info */
 
 /* Enumeration of UCP address versions.
  * Every release which changes the address binary format must bump this number.
@@ -673,6 +674,10 @@ ucp_address_do_pack(ucp_worker_h worker, ucp_ep_h ep, void *buffer, size_t size,
     addr_index        = 0;
     address_header_p  = ptr;
     *address_header_p = UCP_ADDRESS_VERSION_CURRENT;
+    if (ep->flags | UCP_EP_FLAG_OOB_ECE) {
+        *address_header_p |= UCP_ADDRESS_HEADER_FLAG_ECE;
+    }
+
     ptr               = UCS_PTR_TYPE_OFFSET(ptr, uint8_t);
 
     if (pack_flags & UCP_ADDRESS_PACK_FLAG_WORKER_UUID) {
@@ -1170,4 +1175,15 @@ ucs_status_t ucp_address_unpack(ucp_worker_t *worker, const void *buffer,
 err_free:
     ucs_free(address_list);
     return UCS_ERR_INVALID_PARAM;
+}
+
+ucs_status_t ucp_address_oob_ece(const void *buffer)
+{
+    uint8_t address_header = *(const uint8_t *)buffer;
+
+    if (address_header & UCP_ADDRESS_HEADER_FLAG_ECE) {
+        return UCS_OK;
+    } else {
+        return UCS_ERR_NO_ELEM;
+    }
 }
