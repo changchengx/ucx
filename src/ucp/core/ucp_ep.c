@@ -775,6 +775,8 @@ ucs_status_t ucp_ep_create_server_accept(ucp_worker_h worker,
                   conn_request->ece);
         ucp_listener_reject(conn_request->listener, conn_request);
         return UCS_ERR_UNSUPPORTED;
+    } else {
+        remote_addr.ece = conn_request->ece;
     }
 
     for (i = 0; i < remote_addr.address_count; ++i) {
