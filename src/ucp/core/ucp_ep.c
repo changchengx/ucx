@@ -763,6 +763,20 @@ ucs_status_t ucp_ep_create_server_accept(ucp_worker_h worker,
         return status;
     }
 
+    if ((ucp_address_oob_ece(sa_data + 1) == UCS_ERR_NO_ELEM) &&
+        (conn_request->ece != 0)) {
+        ucs_error("No OOB ECE is needed, received ECE is : 0x%x",
+                  conn_request->ece);
+        ucp_listener_reject(conn_request->listener, conn_request);
+        return UCS_ERR_UNSUPPORTED;
+    } else if ((ucp_address_oob_ece(sa_data + 1) == UCS_ERR_NO_ELEM) &&
+               (conn_request->ece == 0)) {
+        ucs_error("OOB ECE is needed, received ECE is : 0x%x",
+                  conn_request->ece);
+        ucp_listener_reject(conn_request->listener, conn_request);
+        return UCS_ERR_UNSUPPORTED;
+    }
+
     for (i = 0; i < remote_addr.address_count; ++i) {
         remote_addr.address_list[i].dev_addr  = conn_request->remote_dev_addr;
         remote_addr.address_list[i].dev_index = conn_request->sa_data.dev_index;
