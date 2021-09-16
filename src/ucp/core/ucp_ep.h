@@ -516,6 +516,7 @@ typedef struct ucp_conn_request {
     uct_device_addr_t           *remote_dev_addr;
     struct sockaddr_storage     client_address;
     ucp_ep_h                    ep; /* valid only if request is handled internally */
+    uint32_t                    ece; /* OOB ECE of the remote peer */
     ucp_wireup_sockaddr_data_t  sa_data;
     /* packed worker address follows */
 } ucp_conn_request_t;
