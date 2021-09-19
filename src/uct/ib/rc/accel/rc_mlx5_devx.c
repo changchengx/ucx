@@ -412,6 +412,10 @@ uct_rc_mlx5_iface_common_devx_connect_qp(uct_rc_mlx5_iface_common_t *iface,
     UCT_IB_MLX5DV_SET(qpc, qpc, rae, true);
     UCT_IB_MLX5DV_SET(qpc, qpc, min_rnr_nak, iface->super.config.min_rnr_timer);
 
+    if (dev->flags & UCT_IB_DEVICE_FLAG_ECE &&
+        iface->super.super.config.ece_cfg.ece_enable) {
+        UCT_IB_MLX5DV_SET(init2rtr_qp_in, in_2rtr, ece, qp->remote_ece.val);
+    }
     UCT_IB_MLX5DV_SET(init2rtr_qp_in, in_2rtr, opt_param_mask, opt_param_mask);
 
     status = uct_ib_mlx5_devx_modify_qp(qp, in_2rtr, sizeof(in_2rtr),
@@ -440,6 +444,11 @@ uct_rc_mlx5_iface_common_devx_connect_qp(uct_rc_mlx5_iface_common_t *iface,
                                         out_2rts, sizeof(out_2rts));
     if (status != UCS_OK) {
         return status;
+    }
+
+    if (dev->flags & UCT_IB_DEVICE_FLAG_ECE) {
+        ucs_debug("rc devx under rst with ece 0x%x",
+                  UCT_IB_MLX5DV_GET(rtr2rts_qp_out, out_2rts, ece));
     }
 
     ucs_debug("connected rc devx qp 0x%x on "UCT_IB_IFACE_FMT" to lid %d(+%d) sl %d "
