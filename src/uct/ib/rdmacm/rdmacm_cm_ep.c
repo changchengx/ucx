@@ -470,6 +470,16 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
     cep->id     = event->id;
     cep->flags |= UCT_RDMACM_CM_EP_ON_SERVER;
 
+    if (params->field_mask & UCT_EP_PARAM_FIELD_ECE) {
+        if (params->ece != 0) {
+            cep->ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
+            cep->ece.options   = params->ece;
+            cep->ece.comp_mask = 0;
+        }
+    } else {
+        cep->ece.vendor_id = 0xffffffff;
+    }
+
     if (event->listen_id->channel != cm->ev_ch) {
         /* the server will open the ep to the client on a different CM.
          * not the one on which its listener is listening on */
@@ -587,7 +597,10 @@ uct_rdmacm_cm_ep_send_priv_data(uct_rdmacm_cm_ep_t *cep, const void *priv_data,
         ucs_trace("%s: rdma_accept on cm_id %p",
                   uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
                   cep->id);
-        if (rdma_accept(cep->id, &conn_param)) {
+        if (rdma_set_local_ece(cep->id, &cep->ece) != 0) {
+            status = UCS_ERR_IO_ERROR;
+        }
+        if (status || rdma_accept(cep->id, &conn_param)) {
             uct_cm_ep_peer_error(&cep->super,
                                  "rdma_accept(on id=%p) failed: %m", cep->id);
             status = UCS_ERR_CONNECTION_RESET;

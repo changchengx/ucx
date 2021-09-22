@@ -1321,6 +1321,7 @@ ucs_status_t ucp_ep_cm_connect_server_lane(ucp_ep_h ep,
               ucp_context_cm_name(worker->context, cm_idx));
     uct_ep_params.field_mask = UCT_EP_PARAM_FIELD_CM                        |
                                UCT_EP_PARAM_FIELD_CONN_REQUEST              |
+                               UCT_EP_PARAM_FIELD_ECE                       |
                                UCT_EP_PARAM_FIELD_USER_DATA                 |
                                UCT_EP_PARAM_FIELD_SOCKADDR_CB_FLAGS         |
                                UCT_EP_PARAM_FIELD_SOCKADDR_NOTIFY_CB_SERVER |
@@ -1339,6 +1340,12 @@ ucs_status_t ucp_ep_cm_connect_server_lane(ucp_ep_h ep,
                                           &uct_ep_params.private_data_length);
     if (status != UCS_OK) {
         goto err;
+    }
+
+    if (ep->flags & UCP_EP_FLAG_OOB_ECE) {
+        uct_ep_params.ece = ep->local_ece;
+    } else {
+        uct_ep_params.ece = 0;
     }
 
     status = uct_ep_create(&uct_ep_params, &uct_ep);
