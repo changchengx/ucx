@@ -591,9 +591,10 @@ void uct_ep_destroy(uct_ep_h ep)
     ep->iface->ops.ep_destroy(ep);
 }
 
-ucs_status_t uct_ep_get_address(uct_ep_h ep, uct_ep_addr_t *addr)
+ucs_status_t uct_ep_get_address(uct_ep_h ep, uct_ep_addr_t *addr,
+                                uint32_t *ibv_ece)
 {
-    return ep->iface->ops.ep_get_address(ep, addr);
+    return ep->iface->ops.ep_get_address(ep, addr, ibv_ece);
 }
 
 ucs_status_t uct_ep_get_ece(uct_ep_h ep, uint32_t *ibv_ece)

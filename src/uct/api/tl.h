@@ -229,7 +229,8 @@ typedef ucs_status_t (*uct_cm_ep_conn_notify_func_t)(uct_ep_h ep);
 typedef void         (*uct_ep_destroy_func_t)(uct_ep_h ep);
 
 typedef ucs_status_t (*uct_ep_get_address_func_t)(uct_ep_h ep,
-                                                  uct_ep_addr_t *addr);
+                                                  uct_ep_addr_t *addr,
+                                                  uint32_t *ibv_ece);
 
 typedef ucs_status_t (*uct_ep_get_ece_func_t)(uct_ep_h ep, uint32_t *ibv_ece);
 

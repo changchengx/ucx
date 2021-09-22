@@ -165,7 +165,8 @@ void uct_rc_verbs_ep_vfs_populate(uct_rc_ep_t *rc_ep);
 ucs_status_t uct_rc_verbs_ep_fc_ctrl(uct_ep_t *tl_ep, unsigned op,
                                      uct_rc_pending_req_t *req);
 
-ucs_status_t uct_rc_verbs_ep_get_address(uct_ep_h tl_ep, uct_ep_addr_t *addr);
+ucs_status_t uct_rc_verbs_ep_get_address(uct_ep_h tl_ep, uct_ep_addr_t *addr,
+                                         uint32_t *ibv_ece);
 
 ucs_status_t uct_rc_verbs_ep_get_ece(uct_ep_h tl_ep, uint32_t *ibv_ece);
 
