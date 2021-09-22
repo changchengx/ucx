@@ -603,8 +603,14 @@ static void uct_rdmacm_cm_handle_event_connect_response(struct rdma_cm_event *ev
     remote_data.dev_addr          = dev_addr;
     remote_data.dev_addr_length   = addr_length;
 
+    status = uct_rdmacm_get_oob_ece(event->id, &remote_data);
+    if (status != UCS_OK) {
+        goto rel_src;
+    }
+
     uct_rdmacm_cm_ep_client_connect_cb(cep, &remote_data,
                                        (ucs_status_t)hdr->status);
+rel_src:
     ucs_free(dev_addr);
 }
 
