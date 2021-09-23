@@ -2273,9 +2273,11 @@ ucs_status_t uct_ep_set_ece(uct_ep_h ep, uint32_t ibv_ece);
  * @param [in] ep           Endpoint to connect.
  * @param [in] dev_addr     Remote device address.
  * @param [in] ep_addr      Remote endpoint address.
+ * @param [in] ibv_ece      Remote endpoint ECE
  */
 ucs_status_t uct_ep_connect_to_ep(uct_ep_h ep, const uct_device_addr_t *dev_addr,
-                                  const uct_ep_addr_t *ep_addr);
+                                  const uct_ep_addr_t *ep_addr,
+                                  const uint32_t *ibv_ece);
 
 
 /**
