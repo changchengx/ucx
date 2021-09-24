@@ -708,21 +708,6 @@ out:
     return status;
 }
 
-ucs_status_t uct_rdmacm_cm_ep_set_ece(uct_ep_h ep, uint32_t ibv_ece)
-{
-    uct_rdmacm_cm_ep_t *cep = ucs_derived_of(ep, uct_rdmacm_cm_ep_t);
-
-    if (ibv_ece == 0) {
-        cep->ece.vendor_id = 0xffffffff;
-    } else {
-        cep->ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
-        cep->ece.options   = ibv_ece;
-        cep->ece.comp_mask = 0;
-    }
-
-    return UCS_OK;
-}
-
 UCS_CLASS_INIT_FUNC(uct_rdmacm_cm_ep_t, const uct_ep_params_t *params)
 {
     ucs_status_t status;

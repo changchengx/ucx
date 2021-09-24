@@ -566,23 +566,6 @@ ucs_status_t uct_rc_verbs_ep_get_address(uct_ep_h tl_ep, uct_ep_addr_t *addr,
     return UCS_OK;
 }
 
-ucs_status_t uct_rc_verbs_ep_set_ece(uct_ep_h tl_ep, uint32_t ibv_ece)
-{
-    uct_rc_verbs_ep_t *ep = ucs_derived_of(tl_ep, uct_rc_verbs_ep_t);
-    uct_rc_iface_t *iface = ucs_derived_of(tl_ep->iface, uct_rc_iface_t);
-    uct_ib_device_t *dev  = &uct_ib_iface_md(&iface->super)->dev;
-
-    if (((dev->flags & UCT_IB_DEVICE_FLAG_ECE) == 0) ||
-        (iface->super.config.ece_cfg.ece_enable == 0)) {
-        ep->super.remote_ece.val = 0;
-        return UCS_ERR_UNSUPPORTED;
-    }
-
-    ep->super.remote_ece.val = ibv_ece;
-
-    return UCS_OK;
-}
-
 ucs_status_t uct_rc_verbs_ep_connect_to_ep(uct_ep_h tl_ep,
                                            const uct_device_addr_t *dev_addr,
                                            const uct_ep_addr_t *ep_addr,

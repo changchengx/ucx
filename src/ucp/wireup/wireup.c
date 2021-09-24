@@ -398,7 +398,6 @@ ucp_wireup_connect_local(ucp_ep_h ep,
             goto out;
         }
 
-        uct_ep_set_ece(ep->uct_eps[lane], ep->remote_ece);
         status = uct_ep_connect_to_ep(ep->uct_eps[lane], dev_addr, ep_addr,
                                       &ep->remote_ece);
         if (status != UCS_OK) {

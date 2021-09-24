@@ -1033,7 +1033,6 @@ static uct_iface_ops_t uct_rc_mlx5_iface_tl_ops = {
     .ep_create                = UCS_CLASS_NEW_FUNC_NAME(uct_rc_mlx5_ep_t),
     .ep_destroy               = UCS_CLASS_DELETE_FUNC_NAME(uct_rc_mlx5_ep_t),
     .ep_get_address           = uct_rc_mlx5_ep_get_address,
-    .ep_set_ece               = uct_rc_mlx5_ep_set_ece,
     .ep_connect_to_ep         = uct_rc_mlx5_ep_connect_to_ep,
 #if IBV_HW_TM
     .ep_tag_eager_short       = uct_rc_mlx5_ep_tag_eager_short,

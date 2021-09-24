@@ -70,8 +70,6 @@ uct_rdmacm_cm_ep_send_priv_data(uct_rdmacm_cm_ep_t *cep, const void *priv_data,
 ucs_status_t uct_rdmacm_cm_ep_connect(uct_ep_h ep,
                                       const uct_ep_connect_params_t *params);
 
-ucs_status_t uct_rdmacm_cm_ep_set_ece(uct_ep_h ep, uint32_t ibv_ece);
-
 ucs_status_t uct_rdmacm_cm_ep_disconnect(uct_ep_h ep, unsigned flags);
 
 ucs_status_t uct_rdmacm_cm_ep_conn_notify(uct_ep_h ep);

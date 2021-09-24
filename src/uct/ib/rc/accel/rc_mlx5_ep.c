@@ -650,22 +650,6 @@ ucs_status_t uct_rc_mlx5_ep_get_address(uct_ep_h tl_ep, uct_ep_addr_t *addr,
     return UCS_OK;
 }
 
-ucs_status_t uct_rc_mlx5_ep_set_ece(uct_ep_h tl_ep, uint32_t ibv_ece)
-{
-    UCT_RC_MLX5_EP_DECL(tl_ep, iface, ep);
-    uct_ib_device_t *dev  = &uct_ib_iface_md(&iface->super.super)->dev;
-
-    if (((dev->flags & UCT_IB_DEVICE_FLAG_ECE) == 0) ||
-        (iface->super.super.config.ece_cfg.ece_enable == 0)) {
-        ep->super.remote_ece.val = 0;
-        return UCS_ERR_UNSUPPORTED;
-    }
-
-    ep->super.remote_ece.val = ibv_ece;
-
-    return UCS_OK;
-}
-
 void uct_rc_mlx5_common_packet_dump(uct_base_iface_t *iface, uct_am_trace_type_t type,
                                     void *data, size_t length, size_t valid_length,
                                     char *buffer, size_t max)

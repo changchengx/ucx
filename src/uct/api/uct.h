@@ -2254,16 +2254,6 @@ ucs_status_t uct_ep_get_address(uct_ep_h ep, uct_ep_addr_t *addr,
 
 /**
  * @ingroup UCT_RESOURCE
- * @brief Get endpoint ECE val.
- *
- * @param [in] ep      Endpoint to query.
- * @param [in] ibv_ece ECE to be set to endpoint
- */
-ucs_status_t uct_ep_set_ece(uct_ep_h ep, uint32_t ibv_ece);
-
-
-/**
- * @ingroup UCT_RESOURCE
  * @brief Connect endpoint to a remote endpoint.
  *
  * requires @ref UCT_IFACE_FLAG_CONNECT_TO_EP capability.

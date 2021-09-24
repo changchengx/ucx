@@ -106,8 +106,7 @@ static uct_iface_t ucp_failed_tl_iface = {
         .ep_check            = (uct_ep_check_func_t)ucs_empty_function_return_success,
         .ep_connect_to_ep    = (uct_ep_connect_to_ep_func_t)ucs_empty_function_return_ep_timeout,
         .ep_destroy          = (uct_ep_destroy_func_t)ucs_empty_function,
-        .ep_get_address      = (uct_ep_get_address_func_t)ucs_empty_function_return_ep_timeout,
-        .ep_set_ece          = (uct_ep_set_ece_func_t)ucs_empty_function_return_unsupported
+        .ep_get_address      = (uct_ep_get_address_func_t)ucs_empty_function_return_ep_timeout
     }
 };
 

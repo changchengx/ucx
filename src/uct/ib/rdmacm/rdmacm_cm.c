@@ -835,7 +835,6 @@ static uct_iface_ops_t uct_rdmacm_cm_iface_ops = {
     .ep_pending_purge         = ucs_empty_function,
     .ep_connect               = uct_rdmacm_cm_ep_connect,
     .ep_disconnect            = uct_rdmacm_cm_ep_disconnect,
-    .ep_set_ece               = uct_rdmacm_cm_ep_set_ece,
     .cm_ep_conn_notify        = uct_rdmacm_cm_ep_conn_notify,
     .ep_destroy               = UCS_CLASS_DELETE_FUNC_NAME(uct_rdmacm_cm_ep_t),
     .ep_put_short             = (uct_ep_put_short_func_t)ucs_empty_function_return_unsupported,
