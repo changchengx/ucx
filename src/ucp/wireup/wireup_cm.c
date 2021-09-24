@@ -454,16 +454,15 @@ initial_config_retry:
         goto err;
     }
 
-    if (ep->flags & UCP_EP_FLAG_OOB_ECE) {
-        uct_ep_set_ece(ucp_ep_get_cm_uct_ep(ep), ep->local_ece);
-    } else {
-        uct_ep_set_ece(ucp_ep_get_cm_uct_ep(ep), 0);
-    }
-
     params.field_mask          = UCT_EP_CONNECT_PARAM_FIELD_PRIVATE_DATA |
                                  UCT_EP_CONNECT_PARAM_FIELD_PRIVATE_DATA_LENGTH;
     params.private_data        = priv_data;
     params.private_data_length = priv_data_length;
+    if (ep->flags & UCP_EP_FLAG_OOB_ECE) {
+        params.field_mask |= UCT_EP_CONNECT_PARAM_FIELD_ECE;
+        params.ece         = ep->local_ece;
+    }
+
     status                     = uct_ep_connect(ucp_ep_get_cm_uct_ep(ep),
                                                 &params);
     ucs_free(priv_data);
