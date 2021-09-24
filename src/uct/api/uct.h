@@ -2256,16 +2256,6 @@ ucs_status_t uct_ep_get_address(uct_ep_h ep, uct_ep_addr_t *addr,
  * @ingroup UCT_RESOURCE
  * @brief Get endpoint ECE val.
  *
- * @param [in]  ep      Endpoint to query.
- * @param [out] ibv_ece Filled with endpoint ECE val
- */
-ucs_status_t uct_ep_get_ece(uct_ep_h ep, uint32_t *ibv_ece);
-
-
-/**
- * @ingroup UCT_RESOURCE
- * @brief Get endpoint ECE val.
- *
  * @param [in] ep      Endpoint to query.
  * @param [in] ibv_ece ECE to be set to endpoint
  */

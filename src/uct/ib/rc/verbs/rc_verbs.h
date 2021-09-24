@@ -168,8 +168,6 @@ ucs_status_t uct_rc_verbs_ep_fc_ctrl(uct_ep_t *tl_ep, unsigned op,
 ucs_status_t uct_rc_verbs_ep_get_address(uct_ep_h tl_ep, uct_ep_addr_t *addr,
                                          uint32_t *ibv_ece);
 
-ucs_status_t uct_rc_verbs_ep_get_ece(uct_ep_h tl_ep, uint32_t *ibv_ece);
-
 ucs_status_t uct_rc_verbs_ep_set_ece(uct_ep_h tl_ep, uint32_t ibv_ece);
 
 ucs_status_t uct_rc_verbs_ep_connect_to_ep(uct_ep_h tl_ep,

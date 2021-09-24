@@ -540,12 +540,6 @@ ucs_status_t ucp_wireup_ep_connect(uct_ep_h uct_ep, unsigned ep_init_flags,
         goto err;
     }
 
-    status = uct_ep_params.iface->ops.ep_get_ece(next_ep, &ucp_ep->local_ece);
-    if (status != UCS_OK) {
-        ucp_ep->flags &= ~UCP_EP_FLAG_OOB_ECE;
-        ucp_ep->local_ece = 0;
-    }
-
     ucp_proxy_ep_set_uct_ep(&wireup_ep->super, next_ep, 1);
 
     ucs_debug("ep %p: wireup_ep %p created next_ep %p to %s "

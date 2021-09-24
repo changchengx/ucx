@@ -532,7 +532,6 @@ static uct_iface_ops_t uct_rc_verbs_iface_tl_ops = {
     .ep_create                = UCS_CLASS_NEW_FUNC_NAME(uct_rc_verbs_ep_t),
     .ep_destroy               = UCS_CLASS_DELETE_FUNC_NAME(uct_rc_verbs_ep_t),
     .ep_get_address           = uct_rc_verbs_ep_get_address,
-    .ep_get_ece               = uct_rc_verbs_ep_get_ece,
     .ep_set_ece               = uct_rc_verbs_ep_set_ece,
     .ep_connect_to_ep         = uct_rc_verbs_ep_connect_to_ep,
     .iface_flush              = uct_rc_iface_flush,

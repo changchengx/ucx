@@ -650,22 +650,6 @@ ucs_status_t uct_rc_mlx5_ep_get_address(uct_ep_h tl_ep, uct_ep_addr_t *addr,
     return UCS_OK;
 }
 
-ucs_status_t uct_rc_mlx5_ep_get_ece(uct_ep_h tl_ep, uint32_t *ibv_ece)
-{
-    UCT_RC_MLX5_EP_DECL(tl_ep, iface, ep);
-    uct_ib_device_t *dev  = &uct_ib_iface_md(&iface->super.super)->dev;
-
-    if (((dev->flags & UCT_IB_DEVICE_FLAG_ECE) == 0) ||
-        (iface->super.super.config.ece_cfg.ece_enable == 0)) {
-        *ibv_ece = 0;
-        return UCS_ERR_UNSUPPORTED;
-    }
-
-    *ibv_ece = ece_int(*ibv_ece, ep->super.local_ece.val);
-
-    return UCS_OK;
-}
-
 ucs_status_t uct_rc_mlx5_ep_set_ece(uct_ep_h tl_ep, uint32_t ibv_ece)
 {
     UCT_RC_MLX5_EP_DECL(tl_ep, iface, ep);

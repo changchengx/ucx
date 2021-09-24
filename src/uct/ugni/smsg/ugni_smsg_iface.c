@@ -238,8 +238,6 @@ static uct_iface_ops_t uct_ugni_smsg_iface_ops = {
     .ep_create                = UCS_CLASS_NEW_FUNC_NAME(uct_ugni_smsg_ep_t),
     .ep_destroy               = UCS_CLASS_DELETE_FUNC_NAME(uct_ugni_smsg_ep_t),
     .ep_get_address           = uct_ugni_smsg_ep_get_address,
-    .ep_get_ece               = (uct_ep_get_ece_func_t)
-                                ucs_empty_function_return_unsupported,
     .ep_set_ece               = (uct_ep_set_ece_func_t)
                                 ucs_empty_function_return_unsupported,
     .ep_connect_to_ep         = uct_ugni_smsg_ep_connect_to_ep,
