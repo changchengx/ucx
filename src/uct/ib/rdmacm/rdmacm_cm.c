@@ -465,6 +465,7 @@ static ucs_status_t
 uct_rdmacm_get_oob_ece(struct rdma_cm_id *cm_id,
                        uct_cm_remote_data_t *remote_data)
 {
+#if HAVE_RDMACM_ECE
     struct ibv_ece ece = {};
 
     ucs_assert(cm_id != NULL);
@@ -487,6 +488,9 @@ uct_rdmacm_get_oob_ece(struct rdma_cm_id *cm_id,
 
     remote_data->field_mask |= UCT_CM_REMOTE_DATA_FIELD_OOB_ECE;
     remote_data->ece = ece.options;
+#else
+    remote_data->ece = 0;
+#endif
     ucs_debug("cm_id %p, oob ece : 0x%x", cm_id, remote_data->ece);
 
     return UCS_OK;

@@ -619,7 +619,7 @@ UCS_CLASS_INIT_FUNC(uct_rc_verbs_ep_t, const uct_ep_params_t *params)
     uct_rc_verbs_iface_t *iface = ucs_derived_of(params->iface, uct_rc_verbs_iface_t);
     uct_ib_md_t *md             = uct_ib_iface_md(&iface->super.super);
     uct_ib_qp_attr_t attr = {};
-    uct_ibv_ece_t ece     = {};
+    uct_ibv_ece_t UCS_V_UNUSED ece     = {};
     ucs_status_t status;
 
     status = uct_rc_iface_qp_create(&iface->super, &self->qp, &attr,
@@ -643,6 +643,7 @@ UCS_CLASS_INIT_FUNC(uct_rc_verbs_ep_t, const uct_ep_params_t *params)
         goto err_qp_cleanup;
     }
 
+#if HAVE_RDMACM_ECE
     if (iface->super.super.config.ece_cfg.ece_enable) {
         if (0 != ibv_query_ece(self->qp, &ece)) {
             ucs_error("failed to query ece");
@@ -651,8 +652,11 @@ UCS_CLASS_INIT_FUNC(uct_rc_verbs_ep_t, const uct_ep_params_t *params)
         }
         self->super.local_ece.val = ece.options;
     } else {
+#endif
         self->super.local_ece.val = 0;
+#if HAVE_RDMACM_ECE
     }
+#endif
     self->super.remote_ece.val = 0;
 
     uct_rc_iface_add_qp(&iface->super, &self->super, self->qp->qp_num);

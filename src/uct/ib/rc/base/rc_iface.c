@@ -795,11 +795,14 @@ ucs_status_t uct_rc_iface_qp_create(uct_rc_iface_t *iface, struct ibv_qp **qp_p,
 ucs_status_t uct_rc_iface_qp_init(uct_rc_iface_t *iface, struct ibv_qp *qp)
 {
     struct ibv_qp_attr qp_attr;
-    uct_ibv_ece_t ece;
-    uct_ib_md_t *md;
     int ret;
 
+#if HAVE_RDMACM_ECE
+    uct_ibv_ece_t ece;
+    uct_ib_md_t *md;
+
     md = uct_ib_iface_md(&iface->super);
+
     memset(&ece, 0, sizeof(ece));
     ece.vendor_id = md->dev.pci_id.vendor;
 
@@ -819,6 +822,7 @@ ucs_status_t uct_rc_iface_qp_init(uct_rc_iface_t *iface, struct ibv_qp *qp)
             return UCS_ERR_IO_ERROR;
         }
     }
+#endif
 
     memset(&qp_attr, 0, sizeof(qp_attr));
 
@@ -847,19 +851,20 @@ ucs_status_t uct_rc_iface_qp_connect(uct_rc_iface_t *iface, struct ibv_qp *qp,
                                      struct ibv_ah_attr *ah_attr,
                                      enum ibv_mtu path_mtu, uint32_t ece)
 {
-    uct_ib_device_t *dev;
+    uct_ib_device_t* UCS_V_UNUSED dev;
 #if HAVE_DECL_IBV_EXP_QP_OOO_RW_DATA_PLACEMENT
     struct ibv_exp_qp_attr qp_attr;
 #else
     struct ibv_qp_attr qp_attr;
 #endif
     long qp_attr_mask;
-    uct_ibv_ece_t ibv_ece;
+    uct_ibv_ece_t UCS_V_UNUSED ibv_ece;
     int ret;
 
     ucs_assert(path_mtu != 0);
 
     dev = uct_ib_iface_device(&iface->super);
+#if HAVE_RDMACM_ECE
     if ((dev->flags & UCT_IB_DEVICE_FLAG_ECE) &&
         (iface->super.config.ece_cfg.ece_enable)) {
         ibv_ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
@@ -867,6 +872,7 @@ ucs_status_t uct_rc_iface_qp_connect(uct_rc_iface_t *iface, struct ibv_qp *qp,
         ibv_ece.comp_mask = 0;
         ibv_set_ece(qp, &ibv_ece);
     }
+#endif
 
     memset(&qp_attr, 0, sizeof(qp_attr));
 
@@ -923,10 +929,12 @@ ucs_status_t uct_rc_iface_qp_connect(uct_rc_iface_t *iface, struct ibv_qp *qp,
         return UCS_ERR_IO_ERROR;
     }
 
+#if HAVE_RDMACM_ECE
     if (dev->flags & UCT_IB_DEVICE_FLAG_ECE) {
         ibv_query_ece(qp, &ibv_ece);
         ucs_debug("rc verbs under rst with ece 0x%x", ibv_ece.options);
     }
+#endif
 
     ucs_debug("connected rc qp 0x%x on "UCT_IB_IFACE_FMT" to lid %d(+%d) sl %d "
               "remote_qp 0x%x mtu %zu timer %dx%d rnr %dx%d rd_atom %d",

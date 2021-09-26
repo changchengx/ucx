@@ -818,6 +818,7 @@ ucs_status_t uct_ib_device_port_check(uct_ib_device_t *dev, uint8_t port_num,
 void uct_ib_device_ece_check(uct_ib_device_t *dev,
                              struct ibv_context *ctx, struct ibv_pd *pd)
 {
+#if HAVE_RDMACM_ECE
     struct ibv_qp *dummy_qp;
     struct ibv_cq *dummy_cq;
     struct ibv_qp_init_attr dummy_qp_init_attr;
@@ -848,6 +849,9 @@ void uct_ib_device_ece_check(uct_ib_device_t *dev,
 
     ucs_assert(ibv_destroy_qp(dummy_qp) == 0);
     ucs_assert(ibv_destroy_cq(dummy_cq) == 0);
+#else
+    dev->flags &= ~UCT_IB_DEVICE_FLAG_ECE;
+#endif
 }
 
 const char *uct_ib_roce_version_str(uct_ib_roce_version_t roce_ver)

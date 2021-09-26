@@ -470,6 +470,7 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
     cep->id     = event->id;
     cep->flags |= UCT_RDMACM_CM_EP_ON_SERVER;
 
+#if HAVE_RDMACM_ECE
     if (params->field_mask & UCT_EP_PARAM_FIELD_ECE) {
         if (params->ece != 0) {
             cep->ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
@@ -479,6 +480,7 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
     } else {
         cep->ece.vendor_id = 0xffffffff;
     }
+#endif
 
     if (event->listen_id->channel != cm->ev_ch) {
         /* the server will open the ep to the client on a different CM.
@@ -574,9 +576,11 @@ uct_rdmacm_cm_ep_send_priv_data(uct_rdmacm_cm_ep_t *cep, const void *priv_data,
         ucs_trace("%s rdma_connect on cm_id %p",
                   uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
                   cep->id);
+#if HAVE_RDMACM_ECE
         if (rdma_set_local_ece(cep->id, &cep->ece) != 0) {
             status = UCS_ERR_IO_ERROR;
         }
+#endif
         if ((status != UCS_OK) || rdma_connect(cep->id, &conn_param)) {
             uct_cm_ep_peer_error(&cep->super,
                                  "rdma_connect(on id=%p) failed: %m", cep->id);
@@ -597,9 +601,11 @@ uct_rdmacm_cm_ep_send_priv_data(uct_rdmacm_cm_ep_t *cep, const void *priv_data,
         ucs_trace("%s: rdma_accept on cm_id %p",
                   uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
                   cep->id);
+#if HAVE_RDMACM_ECE
         if (rdma_set_local_ece(cep->id, &cep->ece) != 0) {
             status = UCS_ERR_IO_ERROR;
         }
+#endif
         if (status || rdma_accept(cep->id, &conn_param)) {
             uct_cm_ep_peer_error(&cep->super,
                                  "rdma_accept(on id=%p) failed: %m", cep->id);
@@ -623,6 +629,7 @@ uct_rdmacm_cm_ep_connect(uct_ep_h ep, const uct_ep_connect_params_t *params)
     const void *priv_data;
     size_t priv_data_length;
 
+#if HAVE_RDMACM_ECE
     if (params->field_mask & UCT_EP_CONNECT_PARAM_FIELD_ECE) {
         cep->ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
         cep->ece.options   = params->ece;
@@ -630,6 +637,7 @@ uct_rdmacm_cm_ep_connect(uct_ep_h ep, const uct_ep_connect_params_t *params)
     } else {
         cep->ece.vendor_id = 0xffffffff;
     }
+#endif
 
     uct_ep_connect_params_get(params, &priv_data, &priv_data_length);
     return uct_rdmacm_cm_ep_send_priv_data(cep, priv_data, priv_data_length);
@@ -721,9 +729,11 @@ UCS_CLASS_INIT_FUNC(uct_rdmacm_cm_ep_t, const uct_ep_params_t *params)
     self->flags         = 0;
     self->status        = UCS_OK;
     self->id            = NULL;
+#if HAVE_RDMACM_ECE
     self->ece.vendor_id = 0xffffffff;
     self->ece.options   = 0;
     self->ece.comp_mask = 0;
+#endif
 
     if (params->field_mask & UCT_EP_PARAM_FIELD_SOCKADDR) {
         status = uct_rdamcm_cm_ep_client_init(self, params);
