@@ -769,7 +769,7 @@ ucs_status_t ucp_ep_create_server_accept(ucp_worker_h worker,
                   conn_request->ece);
         ucp_listener_reject(conn_request->listener, conn_request);
         return UCS_ERR_UNSUPPORTED;
-    } else if ((ucp_address_oob_ece(sa_data + 1) == UCS_ERR_NO_ELEM) &&
+    } else if ((ucp_address_oob_ece(sa_data + 1) == UCS_OK) &&
                (conn_request->ece == 0)) {
         ucs_error("OOB ECE is needed, received ECE is : 0x%x",
                   conn_request->ece);
