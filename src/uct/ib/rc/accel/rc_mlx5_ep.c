@@ -727,7 +727,7 @@ ucs_status_t uct_rc_mlx5_ep_connect_to_ep(uct_ep_h tl_ep,
         ep->super.remote_ece.val = 0;
     } else {
         ep->super.remote_ece.val = *ibv_ece;
-	}
+    }
 
     uct_ib_iface_fill_ah_attr_from_addr(&iface->super.super, ib_addr,
                                         ep->super.path_index, &ah_attr,
