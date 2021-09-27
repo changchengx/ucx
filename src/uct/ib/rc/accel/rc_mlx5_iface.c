@@ -676,7 +676,7 @@ ucs_status_t uct_rc_mlx5_init_ece(uct_rc_mlx5_iface_common_t *iface,
     uct_ib_mlx5_qp_attr_t attr = {};
     ucs_status_t status        = UCS_OK;
 
-    if (md->super.dev.flags && UCT_IB_DEVICE_FLAG_ECE) {
+    if (md->super.dev.flags & UCT_IB_DEVICE_FLAG_ECE) {
         if (conn_ece->ece_enable == UCS_CONFIG_OFF) {
             iface->super.super.config.ece_cfg.ece_enable = 0;
             iface->super.super.config.ece_cfg.ece.val = 0;

@@ -358,7 +358,7 @@ static UCS_CLASS_INIT_FUNC(uct_rc_verbs_iface_t, uct_md_h tl_md,
     }
 
 #if HAVE_RDMACM_ECE
-    if (uct_ib_iface_device(&self->super.super)->flags &&
+    if (uct_ib_iface_device(&self->super.super)->flags &
         UCT_IB_DEVICE_FLAG_ECE) {
         if (conn_ece->ece_enable == UCS_CONFIG_OFF) {
             self->super.super.config.ece_cfg.ece_enable = 0;

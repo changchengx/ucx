@@ -700,7 +700,7 @@ ucp_address_do_pack(ucp_worker_h worker, ucp_ep_h ep, void *buffer, size_t size,
         goto out;
     }
 
-    if (ep->flags | UCP_EP_FLAG_OOB_ECE) {
+    if ((ep != NULL) && (ep->flags & UCP_EP_FLAG_OOB_ECE)) {
         *address_header_p |= UCP_ADDRESS_HEADER_FLAG_ECE;
     }
 
@@ -915,7 +915,7 @@ ucp_address_do_pack(ucp_worker_h worker, ucp_ep_h ep, void *buffer, size_t size,
         }
     }
 
-    if (ep->flags | UCP_EP_FLAG_OOB_ECE) {
+    if ((ep != NULL) && (ep->flags & UCP_EP_FLAG_OOB_ECE)) {
         if (ece_int == 0xffffffff || ece_int == 0) {
             ep->flags &= ~UCP_EP_FLAG_OOB_ECE;
             *address_header_p &= ~UCP_ADDRESS_HEADER_FLAG_ECE;
