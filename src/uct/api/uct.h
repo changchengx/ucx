@@ -872,7 +872,7 @@ enum uct_ep_connect_params_field {
     UCT_EP_CONNECT_PARAM_FIELD_PRIVATE_DATA_LENGTH  = UCS_BIT(1),
 
     /** Enables @ref uct_ep_connect_params::ece */
-    UCT_EP_CONNECT_PARAM_FIELD_ECE                  = UCS_BIT(1)
+    UCT_EP_CONNECT_PARAM_FIELD_ECE                  = UCS_BIT(2)
 };
 
 
