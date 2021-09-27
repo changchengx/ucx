@@ -870,7 +870,8 @@ ucs_status_t uct_rc_iface_qp_connect(uct_rc_iface_t *iface, struct ibv_qp *qp,
         ibv_ece.vendor_id = UCT_IB_VENDOR_ID_MLNX;
         ibv_ece.options = ece;
         ibv_ece.comp_mask = 0;
-        ibv_set_ece(qp, &ibv_ece);
+        /* Make coverity happy */
+        (void)ibv_set_ece(qp, &ibv_ece);
     }
 #endif
 
@@ -931,7 +932,8 @@ ucs_status_t uct_rc_iface_qp_connect(uct_rc_iface_t *iface, struct ibv_qp *qp,
 
 #if HAVE_RDMACM_ECE
     if (dev->flags & UCT_IB_DEVICE_FLAG_ECE) {
-        ibv_query_ece(qp, &ibv_ece);
+        /* Make coverity happy */
+        (void)ibv_query_ece(qp, &ibv_ece);
         ucs_debug("rc verbs under rst with ece 0x%x", ibv_ece.options);
     }
 #endif
