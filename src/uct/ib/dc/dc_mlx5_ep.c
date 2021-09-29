@@ -817,7 +817,8 @@ ucs_status_ptr_t uct_dc_mlx5_ep_tag_rndv_zcopy(uct_ep_h tl_ep, uct_tag_t tag,
 
     op_index = uct_rc_mlx5_tag_get_op_id(&iface->super, comp);
 
-    uct_dc_mlx5_iface_fill_ravh(&ravh, iface->rx.dct.qp_num);
+    // TODO: deal with tag offload
+    uct_dc_mlx5_iface_fill_ravh(&ravh, iface->rx.dct[0].qp_num);
 
     UCT_DC_MLX5_IFACE_TXQP_GET(iface, ep, txqp, txwq);
 
@@ -1027,11 +1028,12 @@ uct_dc_mlx5_ep_fc_hard_req_send(uct_dc_mlx5_ep_t *ep, uint64_t seq)
 
     UCS_STATS_UPDATE_COUNTER(ep->fc.stats, UCT_RC_FC_STAT_TX_HARD_REQ, 1);
 
+    // TODO: deal with fc_hard
     uct_rc_mlx5_txqp_inline_post(&iface->super, UCT_IB_QPT_DCI,
                                  txqp, txwq, MLX5_OPCODE_SEND_IMM,
                                  &sender.payload, sizeof(sender.payload),
                                  UCT_RC_EP_FLAG_FC_HARD_REQ, sender.ep,
-                                 iface->rx.dct.qp_num, 0, 0, &ep->av,
+                                 iface->rx.dct[0].qp_num, 0, 0, &ep->av,
                                  uct_dc_mlx5_ep_get_grh(ep),
                                  uct_ib_mlx5_wqe_av_size(&ep->av),
                                  MLX5_WQE_CTRL_SOLICITED, INT_MAX);
