@@ -242,7 +242,8 @@ struct uct_dc_mlx5_iface {
         /* Array of dcis */
         uct_dc_dci_t              dcis[UCT_DC_MLX5_IFACE_MAX_DCIS];
 
-        uint8_t                   ndci;                        /* Number of DCIs */
+        /* Number of DCIs in one group */
+        uint8_t                   ndci;
 
         /* LIFO is only relevant for dcs allocation policy */
         uct_dc_mlx5_dci_pool_t    dci_pool[UCT_DC_MLX5_IFACE_MAX_DCI_POOLS];
