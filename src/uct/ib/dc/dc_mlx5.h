@@ -208,7 +208,7 @@ KHASH_MAP_INIT_INT64(uct_dc_mlx5_fc_hash, uct_dc_mlx5_ep_fc_entry_t);
 
 
 /* DCI pool
- * same array is used to store DCI's to allocate and DCI's to release:
+ * same array is used to store DCIs to allocate and DCIs to release:
  * 
  * +--------------+-----+-------------+
  * | to release   |     | to allocate |
@@ -218,7 +218,7 @@ KHASH_MAP_INIT_INT64(uct_dc_mlx5_fc_hash, uct_dc_mlx5_ep_fc_entry_t);
  * 0        release     stack      ndci
  *              top     top
  * 
- * Overall count of DCI's to relase and allocated DCI's could not be more than
+ * Overall count of DCIs to release and allocated DCIs could not be more than
  * ndci and these stacks are not intersected
  */
 typedef struct {
