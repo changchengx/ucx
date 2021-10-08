@@ -861,34 +861,50 @@ void uct_dc_mlx5_iface_dcis_destroy(uct_dc_mlx5_iface_t *iface, int max)
     }
 }
 
+static ucs_status_t
+uct_dc_mlx5_iface_create_dcis_per_pool(uct_dc_mlx5_iface_t *iface,
+                                       const int dci_full_handshake,
+                                       int pool_index, int *dci_index)
+{
+    uint8_t num_paths                = iface->super.super.super.num_paths;
+    uct_dc_mlx5_dci_pool_t *dci_pool = &iface->tx.dci_pool[pool_index];
+    ucs_status_t status              = UCS_OK;
+    uint8_t idx;
+
+    ucs_debug("creating dci pool %d with %d QPs", pool_index, iface->tx.ndci);
+    dci_pool->stack_top         = 0;
+    dci_pool->release_stack_top = -1;
+    ucs_arbiter_init(&dci_pool->arbiter);
+
+    for (idx = 0; idx < iface->tx.ndci; idx++) {
+        status = uct_dc_mlx5_iface_create_dci(iface, pool_index, *dci_index,
+                                              pool_index % num_paths,
+                                              dci_full_handshake);
+        if (status != UCS_OK) {
+            return status;
+        }
+
+        dci_pool->stack[idx] = *dci_index;
+        *dci_index = *dci_index + 1;
+    }
+
+    return UCS_OK;
+}
+
 ucs_status_t
 uct_dc_mlx5_iface_create_dcis(uct_dc_mlx5_iface_t *iface,
                               const uct_dc_mlx5_iface_config_t *config)
 {
-    uint8_t num_paths = iface->super.super.super.num_paths;
-    uct_dc_mlx5_dci_pool_t *dci_pool;
-    int i, pool_index, dci_index;
+    int pool_index, dci_index;
     ucs_status_t status;
 
     dci_index = 0;
     for (pool_index = 0; pool_index < iface->tx.num_dci_pools; pool_index++) {
-        dci_pool = &iface->tx.dci_pool[pool_index];
-        ucs_debug("creating dci pool %d with %d QPs", pool_index,
-                  iface->tx.ndci);
-        dci_pool->stack_top         = 0;
-        dci_pool->release_stack_top = -1;
-        ucs_arbiter_init(&dci_pool->arbiter);
-
-        for (i = 0; i < iface->tx.ndci; ++i) {
-            status = uct_dc_mlx5_iface_create_dci(iface, pool_index, dci_index,
-                                                  pool_index % num_paths,
-                                                  config->dci_full_handshake);
-            if (status != UCS_OK) {
-                goto err;
-            }
-
-            dci_pool->stack[i] = dci_index;
-            ++dci_index;
+        status = uct_dc_mlx5_iface_create_dcis_per_pool(iface,
+                                                   config->dci_full_handshake,
+                                                   pool_index, &dci_index);
+        if (status != UCS_OK) {
+            goto err;
         }
     }
 
