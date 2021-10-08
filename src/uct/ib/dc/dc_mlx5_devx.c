@@ -94,8 +94,9 @@ ucs_status_t uct_dc_mlx5_iface_devx_dci_connect(uct_dc_mlx5_iface_t *iface,
                                                 uct_ib_mlx5_qp_t *qp,
                                                 uint8_t path_index)
 {
-    uct_ib_mlx5_md_t *md = ucs_derived_of(iface->super.super.super.super.md,
-                                          uct_ib_mlx5_md_t);
+    uct_ib_iface_t *ib_iface = &iface->super.super.super;
+    uct_ib_mlx5_md_t *md     = ucs_derived_of(ib_iface->super.md,
+                                              uct_ib_mlx5_md_t);
     char in_2init[UCT_IB_MLX5DV_ST_SZ_BYTES(rst2init_qp_in)]   = {};
     char out_2init[UCT_IB_MLX5DV_ST_SZ_BYTES(rst2init_qp_out)] = {};
     char in_2rtr[UCT_IB_MLX5DV_ST_SZ_BYTES(init2rtr_qp_in)]    = {};
@@ -111,8 +112,10 @@ ucs_status_t uct_dc_mlx5_iface_devx_dci_connect(uct_dc_mlx5_iface_t *iface,
 
     qpc = UCT_IB_MLX5DV_ADDR_OF(rst2init_qp_in, in_2init, qpc);
     UCT_IB_MLX5DV_SET(qpc, qpc, pm_state, UCT_IB_MLX5_QPC_PM_STATE_MIGRATED);
-    UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.vhca_port_num, iface->super.super.super.config.port_num);
-    UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.pkey_index, iface->super.super.super.pkey_index);
+    UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.vhca_port_num,
+                      ib_iface->config.port_num);
+    UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.pkey_index,
+                      ib_iface->pkey_index);
 
     status = uct_ib_mlx5_devx_modify_qp(qp, in_2init, sizeof(in_2init),
                                         out_2init, sizeof(out_2init));
@@ -125,18 +128,18 @@ ucs_status_t uct_dc_mlx5_iface_devx_dci_connect(uct_dc_mlx5_iface_t *iface,
 
     qpc = UCT_IB_MLX5DV_ADDR_OF(init2rtr_qp_in, in_2rtr, qpc);
     UCT_IB_MLX5DV_SET(qpc, qpc, pm_state, UCT_IB_MLX5_QPC_PM_STATE_MIGRATED);
-    UCT_IB_MLX5DV_SET(qpc, qpc, mtu, iface->super.super.super.config.path_mtu);
+    UCT_IB_MLX5DV_SET(qpc, qpc, mtu, ib_iface->config.path_mtu);
     UCT_IB_MLX5DV_SET(qpc, qpc, log_msg_max, UCT_IB_MLX5_LOG_MAX_MSG_SIZE);
     UCT_IB_MLX5DV_SET(qpc, qpc, atomic_mode, UCT_IB_MLX5_ATOMIC_MODE);
     UCT_IB_MLX5DV_SET(qpc, qpc, rae, true);
-    if (uct_ib_iface_is_roce(&iface->super.super.super)) {
+    if (uct_ib_iface_is_roce(ib_iface)) {
         UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.eth_prio,
-                          iface->super.super.super.config.sl);
+                          ib_iface->config.sl);
         uct_ib_mlx5_devx_set_qpc_port_affinity(md, path_index, qpc,
                                                &opt_param_mask);
     } else {
         UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.sl,
-                          iface->super.super.super.config.sl);
+                          ib_iface->config.sl);
     }
 
     UCT_IB_MLX5DV_SET(init2rtr_qp_in, in_2rtr, opt_param_mask, opt_param_mask);

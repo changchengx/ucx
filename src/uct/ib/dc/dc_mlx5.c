@@ -405,8 +405,9 @@ err_qp:
 ucs_status_t uct_dc_mlx5_iface_dci_connect(uct_dc_mlx5_iface_t *iface,
                                            uct_dc_dci_t *dci)
 {
-    uct_ib_mlx5_md_t *md = ucs_derived_of(iface->super.super.super.super.md,
-                                          uct_ib_mlx5_md_t);
+    uct_ib_iface_t *ib_iface = &iface->super.super.super;
+    uct_ib_mlx5_md_t *md     = ucs_derived_of(ib_iface->super.md,
+                                              uct_ib_mlx5_md_t);
     struct ibv_qp_attr attr;
     long attr_mask;
 
@@ -418,8 +419,8 @@ ucs_status_t uct_dc_mlx5_iface_dci_connect(uct_dc_mlx5_iface_t *iface,
     ucs_assert(dci->txwq.super.type == UCT_IB_MLX5_OBJ_TYPE_VERBS);
     memset(&attr, 0, sizeof(attr));
     attr.qp_state        = IBV_QPS_INIT;
-    attr.pkey_index      = iface->super.super.super.pkey_index;
-    attr.port_num        = iface->super.super.super.config.port_num;
+    attr.pkey_index      = ib_iface->pkey_index;
+    attr.port_num        = ib_iface->config.port_num;
     attr_mask            = IBV_QP_STATE      |
                            IBV_QP_PKEY_INDEX |
                            IBV_QP_PORT;
@@ -432,11 +433,11 @@ ucs_status_t uct_dc_mlx5_iface_dci_connect(uct_dc_mlx5_iface_t *iface,
     /* Move QP to the RTR state */
     memset(&attr, 0, sizeof(attr));
     attr.qp_state                   = IBV_QPS_RTR;
-    attr.path_mtu                   = iface->super.super.super.config.path_mtu;
-    attr.ah_attr.is_global          = iface->super.super.super.config.force_global_addr;
-    attr.ah_attr.sl                 = iface->super.super.super.config.sl;
+    attr.path_mtu                   = ib_iface->config.path_mtu;
+    attr.ah_attr.is_global          = ib_iface->config.force_global_addr;
+    attr.ah_attr.sl                 = ib_iface->config.sl;
     /* ib_core expects valid ah_attr::port_num when IBV_QP_AV is set */
-    attr.ah_attr.port_num           = iface->super.super.super.config.port_num;
+    attr.ah_attr.port_num           = ib_iface->config.port_num;
     attr_mask                       = IBV_QP_STATE     |
                                       IBV_QP_PATH_MTU  |
                                       IBV_QP_AV;
