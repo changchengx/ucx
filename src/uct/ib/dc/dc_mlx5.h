@@ -402,11 +402,12 @@ uct_dc_mlx5_iface_total_ndci(uct_dc_mlx5_iface_t *iface)
 static UCS_F_ALWAYS_INLINE uint8_t
 uct_dc_mlx5_iface_dci_find(uct_dc_mlx5_iface_t *iface, struct mlx5_cqe64 *cqe)
 {
-    uint32_t qp_num;
+    uint32_t qp_num, user_index;
     int i, ndci;
 
     if (ucs_likely(iface->flags & UCT_DC_MLX5_IFACE_FLAG_UIDX)) {
-        return cqe->srqn_uidx >> UCT_IB_UIDX_SHIFT;
+        user_index = cqe->srqn_uidx >> UCT_IB_UIDX_SHIFT;
+        return user_index;
     }
 
     qp_num = ntohl(cqe->sop_drop_qpn) & UCS_MASK(UCT_IB_QPN_ORDER);

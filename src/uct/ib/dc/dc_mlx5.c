@@ -306,6 +306,7 @@ static ucs_status_t uct_dc_mlx5_iface_create_dci(uct_dc_mlx5_iface_t *iface,
     uct_ib_device_t *dev               = uct_ib_iface_device(ib_iface);
     struct mlx5dv_qp_init_attr dv_attr = {};
     struct ibv_qp *qp;
+    uint32_t user_index;
 
     ucs_assert(ib_iface->config.qp_type == UCT_IB_QPT_DCI);
 
@@ -318,7 +319,8 @@ static ucs_status_t uct_dc_mlx5_iface_create_dci(uct_dc_mlx5_iface_t *iface,
 
     if (md->flags & UCT_IB_MLX5_MD_FLAG_DEVX_DCI) {
         attr.super.max_inl_cqe[UCT_IB_DIR_RX] = 0;
-        attr.uidx           = htonl(dci_index) >> UCT_IB_UIDX_SHIFT;
+        user_index          = dci_index & 0xff;
+        attr.uidx           = htonl(user_index) >> UCT_IB_UIDX_SHIFT;
         attr.full_handshake = full_handshake;
         status = uct_ib_mlx5_devx_create_qp(ib_iface, &dci->txwq.super,
                                             &dci->txwq, &attr);
