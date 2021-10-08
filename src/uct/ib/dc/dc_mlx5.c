@@ -908,6 +908,16 @@ uct_dc_mlx5_iface_create_dcis(uct_dc_mlx5_iface_t *iface,
         }
     }
 
+    for (; pool_index < iface->tx.num_dci_pools + iface->tx.ece_pool_offset;
+         pool_index++) {
+        status = uct_dc_mlx5_iface_create_dcis_per_pool(iface,
+                                                   config->dci_full_handshake,
+                                                   pool_index, &dci_index);
+        if (status != UCS_OK) {
+            goto err;
+        }
+    }
+
     iface->tx.bb_max = iface->tx.dcis[0].txwq.bb_max;
     return UCS_OK;
 
@@ -1433,7 +1443,16 @@ static UCS_CLASS_INIT_FUNC(uct_dc_mlx5_iface_t, uct_md_h tl_md, uct_worker_h wor
     if (config->dci_ka_full_handshake) {
         self->flags |= UCT_DC_MLX5_IFACE_FLAG_KEEPALIVE_FULL_HANDSHAKE;
     }
-    ucs_assert(self->tx.num_dci_pools <= UCT_DC_MLX5_IFACE_MAX_DCI_POOLS);
+
+    ucs_assert(self->gp == 1 || self->gp == 2);
+    ucs_assert(self->tx.num_dci_pools <=
+               UCT_DC_MLX5_IFACE_MAX_DCI_POOLS / self->gp);
+
+    if (self->gp != 1) {
+        self->tx.ece_pool_offset = self->tx.num_dci_pools;
+    } else {
+        self->tx.ece_pool_offset = 0;
+    }
 
     /* create DC target */
     status = uct_dc_mlx5_iface_create_dcts(self, config);

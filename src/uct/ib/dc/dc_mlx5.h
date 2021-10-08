@@ -249,6 +249,9 @@ struct uct_dc_mlx5_iface {
         uct_dc_mlx5_dci_pool_t    dci_pool[UCT_DC_MLX5_IFACE_MAX_DCI_POOLS];
         uint8_t                   num_dci_pools;
 
+        /* ECE dci pool offset */
+        uint8_t                   ece_pool_offset;
+
         uint8_t                   policy;                      /* dci selection algorithm */
         int16_t                   available_quota;             /* if available tx is lower, let
                                                                   another endpoint use the dci */
