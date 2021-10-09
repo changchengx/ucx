@@ -341,8 +341,9 @@ ucs_status_t uct_dc_mlx5_iface_devx_dci_connect(uct_dc_mlx5_iface_t *iface,
 
 #else
 
-static UCS_F_MAYBE_UNUSED ucs_status_t uct_dc_mlx5_iface_devx_create_dct(
-        uct_dc_mlx5_iface_t *iface, int full_handshake)
+static UCS_F_MAYBE_UNUSED
+ucs_status_t uct_dc_mlx5_iface_devx_create_dct(uct_dc_mlx5_iface_t *iface,
+                                               int full_handshake)
 {
     return UCS_ERR_UNSUPPORTED;
 }
@@ -353,8 +354,10 @@ uct_dc_mlx5_iface_devx_set_srq_dc_params(uct_dc_mlx5_iface_t *iface)
     return UCS_ERR_UNSUPPORTED;
 }
 
-static UCS_F_MAYBE_UNUSED ucs_status_t uct_dc_mlx5_iface_devx_dci_connect(
-        uct_dc_mlx5_iface_t *iface, uct_ib_mlx5_qp_t *qp, uint8_t path_index)
+static UCS_F_MAYBE_UNUSED
+ucs_status_t uct_dc_mlx5_iface_devx_dci_connect(uct_dc_mlx5_iface_t *iface,
+                                                uct_ib_mlx5_qp_t *qp,
+                                                uint8_t path_index)
 {
     return UCS_ERR_UNSUPPORTED;
 }
