@@ -924,7 +924,7 @@ ucp_address_do_pack(ucp_worker_h worker, ucp_ep_h ep, void *buffer, size_t size,
                                                         ep_addr_len);
 
                     /* pack ep address */
-                    status = uct_ep_get_address(ep->uct_eps[lane], ptr);
+                    status = uct_ep_get_address(ep->uct_eps[lane], ptr, NULL);
                     if (status != UCS_OK) {
                         return status;
                     }
