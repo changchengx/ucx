@@ -926,8 +926,7 @@ uct_dc_mlx5_iface_create_dcis(uct_dc_mlx5_iface_t *iface,
         }
     }
 
-    for (; pool_index < iface->tx.num_dci_pools + iface->tx.ece_pool_offset;
-         pool_index++) {
+    for (; pool_index < iface->tx.num_dci_pools * iface->gp; pool_index++) {
         status = uct_dc_mlx5_iface_create_dcis_per_pool(iface,
                                                    config->dci_full_handshake,
                                                    pool_index, &dci_index);
@@ -962,7 +961,8 @@ static void uct_dc_mlx5_iface_vfs_refresh(uct_iface_h tl_iface)
 
     /* Add objects for DCIs */
     dci_index = 0;
-    for (pool_index = 0; pool_index < iface->tx.num_dci_pools; pool_index++) {
+    for (pool_index = 0; pool_index < iface->tx.num_dci_pools * iface->gp;
+         pool_index++) {
         dci_pool = &iface->tx.dci_pool[pool_index];
         ucs_vfs_obj_add_dir(iface, dci_pool, "dci_pool/%d", pool_index);
         for (i = 0; i < iface->tx.ndci; ++i) {
@@ -1051,7 +1051,8 @@ static inline ucs_status_t uct_dc_mlx5_iface_flush_dcis(uct_dc_mlx5_iface_t *ifa
         return UCS_INPROGRESS;
     }
 
-    for (dci_index = 0; dci_index < iface->tx.ndci * iface->tx.num_dci_pools;
+    for (dci_index = 0;
+         dci_index < iface->tx.ndci * iface->tx.num_dci_pools * iface->gp;
          dci_index++) {
         if (uct_dc_mlx5_iface_flush_dci(iface, dci_index) != UCS_OK) {
             return UCS_INPROGRESS;
@@ -1532,7 +1533,8 @@ static UCS_CLASS_CLEANUP_FUNC(uct_dc_mlx5_iface_t)
             &self->tx.dci_release_prog_id);
     uct_dc_mlx5_iface_dcis_destroy(self, uct_dc_mlx5_iface_total_ndci(self));
 
-    for (pool_index = 0; pool_index < self->tx.num_dci_pools; pool_index++) {
+    for (pool_index = 0; pool_index < self->tx.num_dci_pools * self->gp;
+         pool_index++) {
         ucs_arbiter_cleanup(&self->tx.dci_pool[pool_index].arbiter);
     }
 }
