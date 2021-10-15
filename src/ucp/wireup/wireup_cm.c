@@ -235,12 +235,6 @@ static size_t ucp_cm_priv_data_length(size_t addr_size)
     return sizeof(ucp_wireup_sockaddr_data_t) + addr_size;
 }
 
-static unsigned ucp_cm_address_pack_flags(ucp_worker_h worker)
-{
-    return ucp_worker_common_address_pack_flags(worker) |
-           UCP_ADDRESS_PACK_FLAGS_CM_DEFAULT;
-}
-
 static ucs_status_t
 ucp_cm_ep_priv_data_pack(ucp_ep_h ep, const ucp_tl_bitmap_t *tl_bitmap,
                          ucp_rsc_index_t dev_index, int can_fallback,

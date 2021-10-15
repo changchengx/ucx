@@ -226,13 +226,19 @@ ucp_worker_common_address_pack_flags(ucp_worker_h worker)
 }
 
 static UCS_F_ALWAYS_INLINE unsigned
-ucp_worker_default_address_pack_flags(ucp_worker_h worker)
+ucp_cm_address_pack_flags(ucp_worker_h worker)
 {
     return ucp_worker_common_address_pack_flags(worker) |
+           UCP_ADDRESS_PACK_FLAGS_CM_DEFAULT;
+}
+
+static UCS_F_ALWAYS_INLINE unsigned
+ucp_worker_default_address_pack_flags(ucp_worker_h worker)
+{
+    return ucp_cm_address_pack_flags(worker) |
            UCP_ADDRESS_PACK_FLAG_WORKER_UUID |
            UCP_ADDRESS_PACK_FLAG_WORKER_NAME |
-           UCP_ADDRESS_PACK_FLAG_DEVICE_ADDR |
-           UCP_ADDRESS_PACK_FLAG_IFACE_ADDR | UCP_ADDRESS_PACK_FLAG_EP_ADDR;
+           UCP_ADDRESS_PACK_FLAG_DEVICE_ADDR;
 }
 
 #define UCP_WORKER_GET_EP_BY_ID(_ep_p, _worker, _ep_id, _action, _fmt_str, ...) \
