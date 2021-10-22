@@ -1202,12 +1202,12 @@ static void uct_dc_mlx5_iface_vfs_refresh(uct_iface_h tl_iface)
     }
 
     /* Add objects for DCT */
-    ucs_vfs_obj_add_dir(iface, &iface->rx.dct, "dct");
-    ucs_vfs_obj_add_ro_file(&iface->rx.dct[0], ucs_vfs_show_primitive,
+    ucs_vfs_obj_add_dir(iface, iface->rx.dct, "dct");
+    ucs_vfs_obj_add_ro_file(iface->rx.dct, ucs_vfs_show_primitive,
                             &iface->rx.dct[0].qp_num, UCS_VFS_TYPE_U32_HEX,
                             "qp_num_no_ece");
     if (iface->gp > 1) {
-        ucs_vfs_obj_add_ro_file(&iface->rx.dct[1], ucs_vfs_show_primitive,
+        ucs_vfs_obj_add_ro_file(iface->rx.dct, ucs_vfs_show_primitive,
                                 &iface->rx.dct[1].qp_num, UCS_VFS_TYPE_U32_HEX,
                                 "qp_num_ece");
     }
