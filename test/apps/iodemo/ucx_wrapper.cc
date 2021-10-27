@@ -681,6 +681,7 @@ void UcxConnection::print_addresses()
 
 bool UcxConnection::connect_common(ucp_ep_params_t& ep_params)
 {
+    struct timeval test_start, test_end;
     const ucp_datatype_t dt_int = ucp_dt_make_contig(sizeof(uint32_t));
     double connect_timeout      = _context.connect_timeout();
     UcxContext::wait_status_t wait_status;
@@ -714,7 +715,10 @@ bool UcxConnection::connect_common(ucp_ep_params_t& ep_params)
                                                 stream_send_callback, 0);
     const char *sreq_title = "conn_id send";
 
+    gettimeofday(&test_start, NULL);
     wait_status = _context.wait_completion(sreq, sreq_title, connect_timeout);
+    gettimeofday(&test_end, NULL);
+    UCX_LOG << "test_end - test_start: " << ((test_end.tv_sec + (test_end.tv_usec * 1e-6)) - (test_start.tv_sec + (test_start.tv_usec * 1e-6)));
     if (wait_status != UcxContext::WAIT_STATUS_OK) {
         UCX_CONN_LOG << "failed to send remote connection id";
         print_addresses();
