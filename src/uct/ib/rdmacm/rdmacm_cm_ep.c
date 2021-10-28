@@ -271,7 +271,7 @@ static ucs_status_t uct_rdamcm_cm_ep_client_init(uct_rdmacm_cm_ep_t *cep,
         goto err;
     }
 
-    ucs_trace("%s rdma_create_id on client (rdmacm %p, event_channel=%p)",
+    ucs_warn("%s rdma_create_id on client (rdmacm %p, event_channel=%p)",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               rdmacm_cm, rdmacm_cm->ev_ch);
 
@@ -280,7 +280,7 @@ static ucs_status_t uct_rdamcm_cm_ep_client_init(uct_rdmacm_cm_ep_t *cep,
      * RDMA_CM_EVENT_ROUTE_RESOLVED event is already received in the the async
      * thread. Therefore, all ep fields have to be initialized before this
      * function is called. */
-    ucs_trace("%s: rdma_resolve_addr on cm_id %p",
+    ucs_warn("%s: rdma_resolve_addr on cm_id %p",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN), cep->id);
     if (rdma_resolve_addr(cep->id, NULL, (struct sockaddr *)params->sockaddr->addr,
                           uct_rdmacm_cm_get_timeout(rdmacm_cm))) {

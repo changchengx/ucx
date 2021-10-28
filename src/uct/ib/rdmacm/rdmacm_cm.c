@@ -132,7 +132,7 @@ static void uct_rdmacm_cm_handle_event_addr_resolved(struct rdma_cm_event *event
 
     ucs_assert(event->id == cep->id);
 
-    ucs_trace("%s rdma_resolve_route on cm_id %p",
+    ucs_warn("%s rdma_resolve_route on cm_id %p",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               event->id);
 
@@ -170,7 +170,7 @@ static void uct_rdmacm_cm_handle_event_route_resolved(struct rdma_cm_event *even
         return;
     }
 
-    ucs_trace("%s rdma_connect, cm_id %p, from address %s",
+    ucs_warn("%s start rdma_connect, cm_id %p, from address %s",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN), cep->id,
               ucs_sockaddr_str(rdma_get_local_addr(event->id), client_ip_port_str,
                                UCS_SOCKADDR_STRING_LEN));
@@ -457,7 +457,7 @@ uct_rdmacm_cm_process_event(uct_rdmacm_cm_t *cm, struct rdma_cm_event *event)
     uint8_t         ack_event    = 1;
     char            ip_port_str[UCS_SOCKADDR_STRING_LEN];
 
-    ucs_trace("rdmacm event (fd=%d cm_id %p cm %p event_channel %p): %s. Peer: %s.",
+    ucs_warn("rdmacm event (fd=%d cm_id %p cm %p event_channel %p): %s. Peer: %s.",
               cm->ev_ch->fd, event->id, cm, cm->ev_ch, rdma_event_str(event->event),
               ucs_sockaddr_str(remote_addr, ip_port_str, UCS_SOCKADDR_STRING_LEN));
 
@@ -629,7 +629,7 @@ UCS_CLASS_INIT_FUNC(uct_rdmacm_cm_t, uct_component_h component,
         goto err_destroy_ev_ch;
     }
 
-    ucs_debug("created rdmacm_cm %p with event_channel %p (fd=%d)",
+    ucs_warn("created rdmacm_cm %p with event_channel %p (fd=%d)",
               self, self->ev_ch, self->ev_ch->fd);
 
     return UCS_OK;
