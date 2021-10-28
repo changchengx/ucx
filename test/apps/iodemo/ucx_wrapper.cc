@@ -695,6 +695,7 @@ bool UcxConnection::connect_common(ucp_ep_params_t& ep_params)
     ep_params.err_handler.cb   = error_callback;
     ep_params.err_handler.arg  = reinterpret_cast<void*>(this);
 
+    UCX_LOG << "start create ep : " << &_ep;
     ucs_status_t status = ucp_ep_create(_context.worker(), &ep_params, &_ep);
     if (status != UCS_OK) {
         assert(_ep == NULL);
@@ -702,7 +703,7 @@ bool UcxConnection::connect_common(ucp_ep_params_t& ep_params)
         return false;
     }
 
-    UCX_CONN_LOG << "created endpoint " << _ep << ", exchanging connection id";
+    UCX_LOG << "end create ep : " << &_ep << ", created endpoint " << _ep << ", exchanging connection id";
 
     // receive remote connection id
     void *rreq             = ucp_stream_recv_nb(_ep, &remote_conn_id, 1, dt_int,
@@ -710,6 +711,7 @@ bool UcxConnection::connect_common(ucp_ep_params_t& ep_params)
                                                 UCP_STREAM_RECV_FLAG_WAITALL);
     const char *rreq_title = "conn_id receive";
 
+    UCX_LOG << "init send local connection id";
     // send local connection id
     void *sreq             = ucp_stream_send_nb(_ep, &_conn_id, 1, dt_int,
                                                 stream_send_callback, 0);
