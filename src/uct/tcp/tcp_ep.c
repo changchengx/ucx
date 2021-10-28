@@ -445,6 +445,7 @@ ucs_status_t uct_tcp_ep_create(const uct_ep_params_t *params,
     struct sockaddr_in dest_addr;
     ucs_status_t status;
 
+    ucs_warn("%s : %u", __func__, __LINE__);
     UCT_EP_PARAMS_CHECK_DEV_IFACE_ADDRS(params);
     memset(&dest_addr, 0, sizeof(dest_addr));
     /* TODO: handle AF_INET6 */

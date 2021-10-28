@@ -673,6 +673,7 @@ ucs_status_t uct_rc_mlx5_ep_connect_to_ep(uct_ep_h tl_ep,
     struct ibv_ah_attr ah_attr;
     ucs_status_t status;
 
+    ucs_warn("%s : %u", __func__, __LINE__);
     uct_ib_iface_fill_ah_attr_from_addr(&iface->super.super, ib_addr,
                                         ep->super.path_index, &ah_attr);
 
@@ -888,6 +889,7 @@ UCS_CLASS_INIT_FUNC(uct_rc_mlx5_ep_t, const uct_ep_params_t *params)
 
     self->connected = 0;
 
+    ucs_warn("%s : %u", __func__, __LINE__);
     /* Need to create QP before super constructor to get QP number */
     uct_rc_mlx5_iface_fill_attr(iface, &attr, iface->super.config.tx_qp_len,
                                 &iface->rx.srq);
