@@ -62,7 +62,7 @@ UCS_CLASS_INIT_FUNC(uct_rdmacm_listener_t, uct_cm_h cm,
         goto err_destroy_id;
     }
 
-    ucs_debug("created an RDMACM listener %p on cm %p with cm_id: %p. "
+    ucs_warn("created an RDMACM listener %p on cm %p with cm_id: %p. "
               "listening on %s:%d", self, cm, self->id,
               ucs_sockaddr_str(saddr, ip_port_str, UCS_SOCKADDR_STRING_LEN),
               ntohs(rdma_get_src_port(self->id)));

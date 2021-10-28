@@ -341,7 +341,7 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
         goto err_reject;
     }
 
-    ucs_trace("%s: rdma_accept on cm_id %p",
+    ucs_warn("%s: rdma_accept on cm_id %p",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               event->id);
 

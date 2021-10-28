@@ -304,7 +304,7 @@ ucp_wireup_connect_local(ucp_ep_h ep,
     int num_eps_connected = 0;
     ucs_status_t status;
 
-    ucs_trace("ep %p: connect local transports", ep);
+    ucs_warn("ep %p: connect local transports start", ep);
 
     for (lane = 0; lane < ucp_ep_num_lanes(ep); ++lane) {
         if (!ucp_ep_is_lane_p2p(ep, lane)) {
@@ -332,6 +332,7 @@ ucp_wireup_connect_local(ucp_ep_h ep,
     status = UCS_OK;
 
 out:
+    ucs_warn("ep %p: connect local transports end", ep);
     *num_eps_connected_p = num_eps_connected;
     return status;
 }
@@ -742,7 +743,7 @@ ucp_wireup_connect_lane(ucp_ep_h ep, unsigned ep_init_flags,
     uct_ep_h uct_ep;
     ucs_status_t status;
 
-    ucs_trace("ep %p: connect lane[%d]", ep, lane);
+    ucs_warn("ep %p: connect lane[%d]", ep, lane);
 
     ucs_assert(lane != ucp_ep_get_cm_lane(ep));
 
@@ -763,7 +764,7 @@ ucp_wireup_connect_lane(ucp_ep_h ep, unsigned ep_init_flags,
     {
         if ((proxy_lane == UCP_NULL_LANE) || (proxy_lane == lane)) {
             /* create an endpoint connected to the remote interface */
-            ucs_trace("ep %p: connect uct_ep[%d] to addr[%d]", ep, lane,
+            ucs_warn("ep %p: connect uct_ep[%d] to addr[%d]", ep, lane,
                       addr_index);
             uct_ep_params.field_mask = UCT_EP_PARAM_FIELD_IFACE      |
                                        UCT_EP_PARAM_FIELD_DEV_ADDR   |
@@ -782,6 +783,7 @@ ucp_wireup_connect_lane(ucp_ep_h ep, unsigned ep_init_flags,
             ucp_wireup_assign_lane(ep, lane, uct_ep, "");
         }
 
+        ucs_warn("ep %p: end connect lane[%d]", ep, lane);
         ucp_worker_iface_progress_ep(wiface);
         return UCS_OK;
     }
@@ -802,7 +804,7 @@ ucp_wireup_connect_lane(ucp_ep_h ep, unsigned ep_init_flags,
                 return status;
             }
 
-            ucs_trace("ep %p: assign uct_ep[%d]=%p wireup", ep, lane, uct_ep);
+            ucs_warn("ep %p: assign uct_ep[%d]=%p wireup", ep, lane, uct_ep);
             ep->uct_eps[lane] = uct_ep;
         } else {
             uct_ep = ep->uct_eps[lane];
@@ -810,7 +812,7 @@ ucp_wireup_connect_lane(ucp_ep_h ep, unsigned ep_init_flags,
         }
 
         if (!(ep_init_flags & (UCP_EP_INIT_CM_WIREUP_CLIENT))) {
-            ucs_trace("ep %p: connect uct_ep[%d]=%p to addr[%d] wireup", ep,
+            ucs_warn("ep %p: connect uct_ep[%d]=%p to addr[%d] wireup", ep,
                       lane, uct_ep, addr_index);
             connect_aux = !(ep_init_flags & (UCP_EP_INIT_CM_WIREUP_CLIENT |
                                              UCP_EP_INIT_CM_WIREUP_SERVER)) &&
