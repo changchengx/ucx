@@ -530,6 +530,7 @@ static void uct_rdmacm_cm_event_handler(int fd, void *arg)
 
     for (;;) {
         /* Fetch an event */
+        ucs_warn("fetch rdmacm event");
         ret = rdma_get_cm_event(cm->ev_ch, &event);
         if (ret) {
             /* EAGAIN (in a non-blocking rdma_get_cm_event) means that
@@ -541,6 +542,7 @@ static void uct_rdmacm_cm_event_handler(int fd, void *arg)
             return;
         }
 
+        ucs_warn("pry rdmacm event : %s", rdma_event_str(event->event));
         UCS_ASYNC_BLOCK(uct_rdmacm_cm_get_async(cm));
         uct_rdmacm_cm_process_event(cm, event);
         UCS_ASYNC_UNBLOCK(uct_rdmacm_cm_get_async(cm));
