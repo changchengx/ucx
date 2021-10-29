@@ -74,7 +74,7 @@ static void ucs_async_thread_ev_handler(void *callback_data, int event,
     int fd                                  = (int)(uintptr_t)callback_data;
     ucs_status_t status;
 
-    ucs_trace_async("ucs_async_thread_ev_handler(fd=%d, event=%d)",
+    ucs_warn("ucs_async_thread_ev_handler(fd=%d, event=%d)",
                     fd, event);
 
     if (fd == ucs_async_pipe_rfd(&cb_arg->thread->wakeup)) {
@@ -192,6 +192,7 @@ static ucs_status_t ucs_async_thread_start(ucs_async_thread_t **thread_p)
 
     /* Store file descriptor into void * storage without memory allocation. */
     wakeup_rfd    = ucs_async_pipe_rfd(&thread->wakeup);
+    ucs_warn("wakup_rfd: %u, thread event fd : %u", wakeup_rfd, *(int*)(thread->event_set));
     status = ucs_event_set_add(thread->event_set, wakeup_rfd,
                                UCS_EVENT_SET_EVREAD,
                                (void *)(uintptr_t)wakeup_rfd);

@@ -214,6 +214,8 @@ static void ucs_async_handler_invoke(ucs_async_handler_t *handler)
 {
     ucs_trace_async("calling async handler " UCS_ASYNC_HANDLER_FMT,
                     UCS_ASYNC_HANDLER_ARG(handler));
+    ucs_warn("calling async handler with id : %u, cb : %s",
+             handler->id, ucs_debug_get_symbol_name(handler->cb));
 
     /* track call count to allow removing the handler synchronously from itself
      * the handler must always be called with async context blocked, so no need
@@ -270,6 +272,7 @@ ucs_status_t ucs_async_dispatch_handlers(int *events, size_t count)
             continue;
         }
 
+	ucs_warn("dispatch event fd : %u", handler->id);
         tmp_status = ucs_async_handler_dispatch(handler);
         if (tmp_status != UCS_OK) {
             status = tmp_status;
@@ -466,7 +469,7 @@ ucs_status_t ucs_async_set_event_handler(ucs_async_mode_t mode, int event_fd,
         goto err_remove_handler;
     }
 
-    ucs_debug("listening to async event fd %d events 0x%x mode %s", event_fd,
+    ucs_warn("listening to async event fd %d events 0x%x mode %s", event_fd,
               events, ucs_async_mode_names[mode]);
     return UCS_OK;
 
