@@ -217,6 +217,7 @@ ucs_status_t ucp_ep_create_base(ucp_worker_h worker, const char *peer_name,
     memset(&ucp_ep_ext_gen(ep)->ep_match, 0,
            sizeof(ucp_ep_ext_gen(ep)->ep_match));
 
+    ucs_list_head_init(&ucp_ep_ext_gen(ep)->ep_list);
     ucs_hlist_head_init(&ucp_ep_ext_gen(ep)->proto_reqs);
     ucp_stream_ep_init(ep);
     ucp_am_ep_init(ep);
