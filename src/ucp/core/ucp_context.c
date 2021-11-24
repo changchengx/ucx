@@ -678,8 +678,9 @@ static int ucp_tls_array_is_present(const char **tls, unsigned count,
         ucs_trace("enabling tl '%s'%s", tl_name, info);
         return 1;
     } else if ((mask = ucp_str_array_search(tls, count, tl_name, "aux")) != 0) {
-        /* Search for tl names with 'aux' suffix, such tls can be
-         * used for auxiliary wireup purposes only */
+        /* Search for tl_name match with the head part of tl in tls.
+         * If the matched tl is specified with suffix "aux", it can
+         * be used for auxiliary wireup purposes only */
         *rsc_flags   |= UCP_TL_RSC_FLAG_AUX;
         *tl_cfg_mask |= mask;
         ucs_trace("enabling auxiliary tl '%s'%s", tl_name, info);
@@ -1285,8 +1286,6 @@ static ucs_status_t ucp_add_component_resources(ucp_context_h context,
             goto out;
         }
 
-        /* If the MD does not have transport resources (device or sockaddr),
-         * don't use it */
         if (num_tl_resources > 0) {
             /* List of memory type MDs */
             mem_type_bitmap = context->tl_mds[md_index].attr.cap.detect_mem_types;
@@ -1297,6 +1296,8 @@ static ucs_status_t ucp_add_component_resources(ucp_context_h context,
             }
             ++context->num_mds;
         } else {
+            /* If the MD does not have transport resources (device or sockaddr),
+             * don't use it */
             ucs_debug("closing md %s because it has no selected transport resources",
                       context->tl_mds[md_index].rsc.md_name);
             uct_md_close(context->tl_mds[md_index].md);
@@ -1678,8 +1679,8 @@ static ucs_status_t ucp_fill_config(ucp_context_h context,
     if (context->config.ext.tm_max_bb_size > context->config.ext.tm_thresh) {
         if (context->config.ext.tm_max_bb_size < sizeof(ucp_request_hdr_t)) {
             /* In case of expected SW RNDV message, the header (ucp_request_hdr_t) is
-             * scattered to UCP user buffer. Make sure that bounce buffer is used for
-             * messages which can not fit SW RNDV hdr. */
+             * scattered to UCP user buffer. Make sure that the bounce buffer used for
+             * messages can fit SW RNDV hdr. */
             context->config.ext.tm_max_bb_size = sizeof(ucp_request_hdr_t);
             ucs_info("UCX_TM_MAX_BB_SIZE value: %zu, adjusted to: %zu",
                      context->config.ext.tm_max_bb_size, sizeof(ucp_request_hdr_t));

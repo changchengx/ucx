@@ -2998,7 +2998,7 @@ UCT_INLINE_API ucs_status_t uct_ep_pending_add(uct_ep_h ep,
  * @ingroup UCT_RESOURCE
  * @brief Remove all pending requests from an endpoint.
  *
- *  Remove pending requests from the given endpoint and pass them to the provided
+ * Remove pending requests from the given endpoint and pass them to the provided
  * callback function. The callback return value is ignored.
  *
  * @param [in]  ep  Endpoint to remove pending requests from.
