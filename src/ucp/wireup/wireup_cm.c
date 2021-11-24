@@ -249,12 +249,6 @@ ucp_cm_priv_data_length(size_t addr_size, ucp_object_version_t sa_data_version)
     return addr_size + ucp_cm_sa_data_length(sa_data_version);
 }
 
-static unsigned ucp_cm_address_pack_flags(ucp_worker_h worker)
-{
-    return ucp_worker_common_address_pack_flags(worker) |
-           UCP_ADDRESS_PACK_FLAGS_CM_DEFAULT;
-}
-
 static void*
 ucp_cm_ep_sa_data_pack(ucp_ep_h ep, ucp_wireup_sockaddr_data_base_t *sa_data,
                        ucp_object_version_t sa_data_version)

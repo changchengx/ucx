@@ -826,8 +826,7 @@ ucs_status_t ucp_ep_create_server_accept(ucp_worker_h worker,
         return status;
     }
 
-    addr_flags = ucp_worker_common_address_pack_flags(worker) |
-                 UCP_ADDRESS_PACK_FLAGS_CM_DEFAULT;
+    addr_flags = ucp_cm_address_pack_flags(worker);
 
     if (ucp_address_is_am_only(worker_addr)) {
         ep_init_flags |= UCP_EP_INIT_CREATE_AM_LANE_ONLY;
