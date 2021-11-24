@@ -2114,9 +2114,16 @@ ucp_ep_config_init_attrs(ucp_worker_t *worker, ucp_rsc_index_t rsc_index,
 static ucs_status_t ucp_ep_config_key_copy(ucp_ep_config_key_t *dst,
                                            const ucp_ep_config_key_t *src)
 {
+    uint32_t popcount = ucs_popcount(src->reachable_md_map);
+
     *dst = *src;
-    dst->dst_md_cmpts = ucs_calloc(ucs_popcount(src->reachable_md_map),
-                                   sizeof(*dst->dst_md_cmpts),
+
+    if (popcount == 0) {
+        dst->dst_md_cmpts = NULL;
+        return UCS_OK;
+    }
+
+    dst->dst_md_cmpts = ucs_calloc(popcount, sizeof(*dst->dst_md_cmpts),
                                    "ucp_dst_md_cmpts");
     if (dst->dst_md_cmpts == NULL) {
         ucs_error("failed to allocate ucp_ep dest component list");
@@ -2124,7 +2131,7 @@ static ucs_status_t ucp_ep_config_key_copy(ucp_ep_config_key_t *dst,
     }
 
     memcpy(dst->dst_md_cmpts, src->dst_md_cmpts,
-           ucs_popcount(src->reachable_md_map) * sizeof(*dst->dst_md_cmpts));
+           popcount * sizeof(*dst->dst_md_cmpts));
     return UCS_OK;
 }
 
