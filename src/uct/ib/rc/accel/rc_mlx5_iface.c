@@ -824,7 +824,7 @@ UCS_CLASS_INIT_FUNC(uct_rc_mlx5_iface_t,
 {
     uct_rc_mlx5_iface_config_t *config = ucs_derived_of(tl_config,
                                                         uct_rc_mlx5_iface_config_t);
-    uct_ib_mlx5_md_t UCS_V_UNUSED *md  = ucs_derived_of(tl_md, uct_ib_mlx5_md_t);
+    uct_ib_mlx5_md_t *md               = ucs_derived_of(tl_md, uct_ib_mlx5_md_t);
     uct_ib_iface_init_attr_t init_attr = {};
     ucs_status_t status;
 
