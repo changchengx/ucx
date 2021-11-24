@@ -874,7 +874,7 @@ enum uct_ep_connect_params_field {
  * @ingroup UCT_RESOURCE
  * @brief Process Per Node (PPN) bandwidth specification: f(ppn) = dedicated + shared / ppn
  *
- *  This structure specifies a function which is used as basis for bandwidth
+ * This structure specifies a function which is used as basis for bandwidth
  * estimation of various UCT operations. This information can be used to select
  * the best performing combination of UCT operations.
  */
@@ -1727,14 +1727,14 @@ void uct_release_tl_resource_list(uct_tl_resource_desc_t *resources);
  * @ingroup UCT_CONTEXT
  * @brief Create a worker object.
  *
- *  The worker represents a progress engine. Multiple progress engines can be
+ * The worker represents a progress engine. Multiple progress engines can be
  * created in an application, for example to be used by multiple threads.
- *  Transports can allocate separate communication resources for every worker,
+ * Transports can allocate separate communication resources for every worker,
  * so that every worker can be progressed independently of others.
  *
  * @param [in]  async         Context for async event handlers. Must not be NULL.
  * @param [in]  thread_mode   Thread access mode to the worker and all interfaces
- *                             and endpoints associated with it.
+ *                            and endpoints associated with it.
  * @param [out] worker_p      Filled with a pointer to the worker object.
  */
 ucs_status_t uct_worker_create(ucs_async_context_t *async,
