@@ -2259,24 +2259,26 @@ ucs_status_t ucp_ep_config_init(ucp_worker_h worker, ucp_ep_config_t *config,
         lane      = config->key.rma_bw_lanes[i];
         rsc_index = config->key.lanes[lane].rsc_index;
 
-        if (rsc_index != UCP_NULL_RESOURCE) {
-            iface_attr = ucp_worker_iface_get_attr(worker, rsc_index);
-            md_attr    = &context->tl_mds[context->tl_rscs[rsc_index].md_index].attr;
-
-            /* GET Zcopy */
-            ucp_ep_config_rndv_zcopy_set(context, UCT_IFACE_FLAG_GET_ZCOPY,
-                                         lane, md_attr, iface_attr,
-                                         get_zcopy_max_bw,
-                                         &config->rndv.get_zcopy,
-                                         &get_zcopy_lane_count);
-
-            /* PUT Zcopy */
-            ucp_ep_config_rndv_zcopy_set(context, UCT_IFACE_FLAG_PUT_ZCOPY,
-                                         lane, md_attr, iface_attr,
-                                         put_zcopy_max_bw,
-                                         &config->rndv.put_zcopy,
-                                         &put_zcopy_lane_count);
+        if (rsc_index == UCP_NULL_RESOURCE) {
+            continue;
         }
+
+        md_attr    = &context->tl_mds[context->tl_rscs[rsc_index].md_index].attr;
+        iface_attr = ucp_worker_iface_get_attr(worker, rsc_index);
+
+        /* GET Zcopy */
+        ucp_ep_config_rndv_zcopy_set(context, UCT_IFACE_FLAG_GET_ZCOPY,
+                                     lane, md_attr, iface_attr,
+                                     get_zcopy_max_bw,
+                                     &config->rndv.get_zcopy,
+                                     &get_zcopy_lane_count);
+
+        /* PUT Zcopy */
+        ucp_ep_config_rndv_zcopy_set(context, UCT_IFACE_FLAG_PUT_ZCOPY,
+                                     lane, md_attr, iface_attr,
+                                     put_zcopy_max_bw,
+                                     &config->rndv.put_zcopy,
+                                     &put_zcopy_lane_count);
     }
 
     /* GET Zcopy */
