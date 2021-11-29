@@ -14,7 +14,7 @@
 #include <ucs/debug/assert.h>
 
 /*
- *  A mechanism to arbitrate among groups of queued work elements, which attempts
+ * A mechanism to arbitrate among groups of queued work elements, which attempts
  * to be "fair" with respect to the groups.
  *
  * - "Arbiter" - the top-level entity.
@@ -22,9 +22,9 @@
  * - "Group"   - queue of work elements which would be dispatched in-order
  *
  * The arbiter contains a double-linked list of the group head elements. The
- * next group head to dispatch is the first entry in the list. Whenever a group
- * is rescheduled it's moved to the tail of the list. At any point a group head
- * can be removed from the "middle" of the list.
+ * next group head to be dispatched is the first entry in the list. Whenever
+ * a group is rescheduled, it's moved to the tail of the list. At any point,
+ * a group head can be removed from the "middle" of the list.
  *
  * The groups and elements are arranged like this:
  *  - every arbitrated element points to the group (head).
@@ -34,10 +34,10 @@
  *    last one points to the first (next).
  *
  * Note:
- *  Every elements holds 4 pointers. It could be done with 3 pointers, so that
- *  the pointer to the previous group is put instead of "next" pointer in the last
- *  element in the group, when it is put on the arbiter queue. However in makes
- *  the code much more complicated.
+ *  Every element holds 4 pointers. It could be done with 3 pointers, so that
+ *  the pointer to the previous group is put instead of "next" pointer in the
+ *  last element in the group, when it is put on the arbiter queue. However,
+ *  it makes the code much more complicated.
  *
  *
  * Arbiter:
