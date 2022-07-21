@@ -135,6 +135,7 @@ static void uct_rdmacm_cm_handle_event_addr_resolved(struct rdma_cm_event *event
     ucs_trace("%s rdma_resolve_route on cm_id %p",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               event->id);
+    ucs_warn("id : %p, client start rdma_resolve_route", event->id);
 
     if (rdma_resolve_route(event->id, uct_rdmacm_cm_get_timeout(cm))) {
         ucs_error("%s: rdma_resolve_route(to addr=%s) failed: %m",
@@ -163,6 +164,7 @@ static void uct_rdmacm_cm_handle_event_route_resolved(struct rdma_cm_event *even
     conn_param.private_data = ucs_alloca(uct_rdmacm_cm_get_max_conn_priv() +
                                          sizeof(uct_rdmacm_priv_data_hdr_t));
 
+    ucs_warn("id : %p, client pre trigger rdma_connect", cep->id);
     status = uct_rdmacm_cm_ep_conn_param_init(cep, &conn_param);
     if (status != UCS_OK) {
         remote_data.field_mask = 0;
@@ -175,6 +177,7 @@ static void uct_rdmacm_cm_handle_event_route_resolved(struct rdma_cm_event *even
               ucs_sockaddr_str(rdma_get_local_addr(event->id), client_ip_port_str,
                                UCS_SOCKADDR_STRING_LEN));
 
+    ucs_warn("id : %p, client trigger rdma_connect", cep->id);
     if (rdma_connect(cep->id, &conn_param)) {
         ucs_error("%s: rdma_connect(to addr=%s) failed: %m",
                   uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
@@ -290,6 +293,7 @@ static void uct_rdmacm_cm_handle_event_connect_request(struct rdma_cm_event *eve
 
     ucs_assert(hdr->status == UCS_OK);
 
+    ucs_warn("id : %p, server received connect request", event->id);
     uct_rdmacm_cm_id_to_dev_name(event->id, dev_name);
 
     status = uct_rdmacm_cm_id_to_dev_addr(event->id, &dev_addr, &addr_length);
@@ -353,6 +357,7 @@ static void uct_rdmacm_cm_handle_event_connect_response(struct rdma_cm_event *ev
     ucs_trace("%s client received connect_response",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN));
 
+    ucs_warn("id : %p, client received connect_response", event->id);
     /* Do not notify user on disconnected EP, RDMACM out of order case */
     if (cep->flags & UCT_RDMACM_CM_EP_GOT_DISCONNECT) {
         return;

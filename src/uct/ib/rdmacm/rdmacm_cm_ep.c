@@ -135,6 +135,8 @@ ucs_status_t uct_rdmacm_cm_ep_conn_notify(uct_ep_h ep)
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               cep->id, rdmacm_cm, rdmacm_cm->ev_ch);
 
+    ucs_warn("id : %p, clent notify server establish", cep->id);
+
     if (rdma_establish(cep->id)) {
         ucs_error("rdma_establish on ep %p (to server addr=%s) failed: %m",
                   cep, ucs_sockaddr_str(remote_addr, ip_port_str,
@@ -271,6 +273,7 @@ static ucs_status_t uct_rdamcm_cm_ep_client_init(uct_rdmacm_cm_ep_t *cep,
         status = UCS_ERR_IO_ERROR;
         goto err;
     }
+    ucs_warn("id : %p, clent create cm id", cep->id);
 
     ucs_trace("%s rdma_create_id on client (rdmacm %p, event_channel=%p)",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
@@ -283,6 +286,7 @@ static ucs_status_t uct_rdamcm_cm_ep_client_init(uct_rdmacm_cm_ep_t *cep,
      * function is called. */
     ucs_trace("%s: rdma_resolve_addr on cm_id %p",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN), cep->id);
+    ucs_warn("id : %p, clent start rdma_resolve_addr", cep->id);
     if (rdma_resolve_addr(cep->id, NULL, (struct sockaddr *)params->sockaddr->addr,
                           uct_rdmacm_cm_get_timeout(rdmacm_cm))) {
         ucs_error("rdma_resolve_addr() to dst addr %s failed: %m",
@@ -344,6 +348,8 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
     ucs_trace("%s: rdma_accept on cm_id %p",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               event->id);
+
+    ucs_warn("id : %p, server trigger accept connection req", event->id);
 
     if (rdma_accept(event->id, &conn_param)) {
         ucs_error("%s: rdma_accept(id=%p client_address=%s) failed: %m",
@@ -432,7 +438,7 @@ ucs_status_t uct_rdmacm_cm_ep_disconnect(uct_ep_h ep, unsigned flags)
         goto out;
     }
 
-    ucs_debug("%s: (id=%p) disconnecting from peer :%s",
+    ucs_warn("%s: (id=%p) disconnecting from peer :%s",
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               cep->id, ucs_sockaddr_str(rdma_get_peer_addr(cep->id), ip_port_str,
                                         UCS_SOCKADDR_STRING_LEN));
