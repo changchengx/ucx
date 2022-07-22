@@ -349,6 +349,7 @@ ucs_status_t ucp_ep_create_to_worker_addr(ucp_worker_h worker,
                                           unsigned ep_init_flags,
                                           const char *message, ucp_ep_h *ep_p)
 {
+    int srv = !strcmp(message, "conn_request on uct_listener");
     unsigned addr_indices[UCP_MAX_LANES];
     ucs_status_t status;
     ucp_ep_h ep;
@@ -360,10 +361,16 @@ ucs_status_t ucp_ep_create_to_worker_addr(ucp_worker_h worker,
     }
 
     /* initialize transport endpoints */
+    if (srv == 1) {
+        ucs_warn("service initing lanes for ep : %p", ep_p);
+    }
     status = ucp_wireup_init_lanes(ep, ep_init_flags, local_tl_bitmap,
                                    remote_address, addr_indices);
     if (status != UCS_OK) {
         goto err_delete;
+    }
+    if (srv == 1) {
+        ucs_warn("service inited lanes for ep : %p", ep_p);
     }
 
     ucs_assert(!(ucp_ep_get_tl_bitmap(ep) & ~local_tl_bitmap));
@@ -528,10 +535,12 @@ ucp_ep_create_api_conn_request(ucp_worker_h worker,
     ucp_ep_h           ep;
     ucs_status_t       status;
 
+    ucs_warn("main process handle new ucp con req : %p", conn_request);
     status = ucp_ep_create_server_accept(worker, conn_request, &ep);
     if (status != UCS_OK) {
         goto out;
     }
+    ucs_warn("main process handled conn req : %p", conn_request);
 
     status = ucp_ep_adjust_params(ep, params);
     if (status != UCS_OK) {

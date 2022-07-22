@@ -270,7 +270,7 @@ void UcxContext::connect_callback(ucp_conn_request_h conn_req, void *arg)
     conn_req_attr.field_mask = UCP_CONN_REQUEST_ATTR_FIELD_CLIENT_ADDR;
     ucs_status_t status = ucp_conn_request_query(conn_req, &conn_req_attr);
     if (status == UCS_OK) {
-        UCX_LOG << "got new connection request " << conn_req << " from client "
+        UCX_LOG << "got new ucp con req : " << conn_req << " from client "
                 << UcxContext::sockaddr_str((const struct sockaddr*)
                                             &conn_req_attr.client_address,
                                             sizeof(conn_req_attr.client_address));
@@ -679,6 +679,7 @@ void UcxConnection::accept(ucp_conn_request_h conn_req, UcxCallback *callback)
         UCX_CONN_LOG << "ucp_conn_request_query() failed: " << ucs_status_string(status);
     }
 
+    UCX_LOG << "main process handle new ucp con req : " << conn_req;
     ucp_ep_params_t ep_params;
     ep_params.field_mask   = UCP_EP_PARAM_FIELD_CONN_REQUEST;
     ep_params.conn_request = conn_req;

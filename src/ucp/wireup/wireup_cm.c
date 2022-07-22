@@ -614,7 +614,7 @@ static unsigned ucp_cm_server_conn_request_progress(void *arg)
     ucp_ep_h                         ep;
     ucs_status_t                     status;
 
-    ucs_trace_func("listener %p, connect request %p", listener, conn_request);
+    ucs_warn("listener %p, ucp con req : %p", listener, conn_request);
 
     if (listener->conn_cb) {
         listener->conn_cb(conn_request, listener->arg);
@@ -713,6 +713,8 @@ void ucp_cm_server_conn_request_cb(uct_listener_h listener, void *arg,
     memcpy(&ucp_conn_request->sa_data, remote_data->conn_priv_data,
            remote_data->conn_priv_data_length);
 
+    ucs_warn("register new ucp con req : %p, uct rep : %p",
+             ucp_conn_request, ucp_conn_request->uct_req);
     uct_worker_progress_register_safe(ucp_listener->worker->uct,
                                       ucp_cm_server_conn_request_progress,
                                       ucp_conn_request,
@@ -750,6 +752,7 @@ ucp_ep_cm_server_create_connected(ucp_worker_h worker, unsigned ep_init_flags,
     ucs_status_t status;
     char client_addr_str[UCS_SOCKADDR_STRING_LEN];
 
+    ucs_warn("handle new ucp con req : %p", conn_request);
     if (tl_bitmap == 0) {
         ucs_error("listener %p: got connection request from %s on uninitialized device %s",
                   conn_request->listener,
@@ -764,6 +767,7 @@ ucp_ep_cm_server_create_connected(ucp_worker_h worker, unsigned ep_init_flags,
     }
 
     /* Create and connect TL part */
+    ucs_warn("ucp con req : %p, create TL ep : %p", conn_request, &ep);
     status = ucp_ep_create_to_worker_addr(worker, tl_bitmap, remote_addr,
                                           ep_init_flags,
                                           "conn_request on uct_listener", &ep);
@@ -771,6 +775,7 @@ ucp_ep_cm_server_create_connected(ucp_worker_h worker, unsigned ep_init_flags,
         return status;
     }
 
+    ucs_warn("ucp con req : %p, connect ep", conn_request);
     status = ucp_wireup_connect_local(ep, remote_addr, NULL, &num_eps_connected);
     if (status != UCS_OK) {
         ucp_ep_destroy_internal(ep);
@@ -785,6 +790,7 @@ ucp_ep_cm_server_create_connected(ucp_worker_h worker, unsigned ep_init_flags,
         return UCS_ERR_SOME_CONNECTS_FAILED;
     }
 
+    ucs_warn("ucp con req : %p, ack peer ep", conn_request);
     status = ucp_ep_cm_connect_server_lane(ep, conn_request);
     if (status != UCS_OK) {
         ucp_ep_destroy_internal(ep);
@@ -959,6 +965,7 @@ ucs_status_t ucp_ep_cm_connect_server_lane(ucp_ep_h ep,
     uct_ep_params.sockaddr_connect_cb.server = ucp_cm_server_conn_notify_cb;
     uct_ep_params.disconnect_cb              = ucp_cm_disconnect_cb;
 
+    ucs_warn("cm uct ep to handle new ucp req : %p, uct req : %p", conn_request, conn_request->uct_req);
     status = uct_ep_create(&uct_ep_params, &uct_ep);
     if (status != UCS_OK) {
         /* coverity[leaked_storage] */

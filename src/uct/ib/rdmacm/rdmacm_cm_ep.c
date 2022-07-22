@@ -340,6 +340,8 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
     conn_param.private_data = ucs_alloca(uct_rdmacm_cm_get_max_conn_priv() +
                                          sizeof(uct_rdmacm_priv_data_hdr_t));
 
+    ucs_warn("id : %p, server pre trigger accept uct req : %p",
+             event->id, params->conn_request);
     status = uct_rdmacm_cm_ep_conn_param_init(cep, &conn_param);
     if (status != UCS_OK) {
         goto err_reject;
@@ -349,7 +351,8 @@ static ucs_status_t uct_rdamcm_cm_ep_server_init(uct_rdmacm_cm_ep_t *cep,
               uct_rdmacm_cm_ep_str(cep, ep_str, UCT_RDMACM_EP_STRING_LEN),
               event->id);
 
-    ucs_warn("id : %p, server trigger accept connection req", event->id);
+    ucs_warn("id : %p, server trigger accept uct req : %p",
+             event->id, params->conn_request);
 
     if (rdma_accept(event->id, &conn_param)) {
         ucs_error("%s: rdma_accept(id=%p client_address=%s) failed: %m",

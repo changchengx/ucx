@@ -293,7 +293,7 @@ static void uct_rdmacm_cm_handle_event_connect_request(struct rdma_cm_event *eve
 
     ucs_assert(hdr->status == UCS_OK);
 
-    ucs_warn("id : %p, server received connect request", event->id);
+    ucs_warn("id : %p, server received uct req : %p", event->id, event);
     uct_rdmacm_cm_id_to_dev_name(event->id, dev_name);
 
     status = uct_rdmacm_cm_id_to_dev_addr(event->id, &dev_addr, &addr_length);
@@ -535,7 +535,9 @@ static void uct_rdmacm_cm_event_handler(int fd, void *arg)
 
     for (;;) {
         /* Fetch an event */
+        ucs_warn("get rdma_cm event");
         ret = rdma_get_cm_event(cm->ev_ch, &event);
+        ucs_warn("got rdma_cm event, ret : %d", ret);
         if (ret) {
             /* EAGAIN (in a non-blocking rdma_get_cm_event) means that
              * there are no more events */
@@ -547,8 +549,10 @@ static void uct_rdmacm_cm_event_handler(int fd, void *arg)
         }
 
         UCS_ASYNC_BLOCK(uct_rdmacm_cm_get_async(cm));
+        ucs_warn("handle rdma_cm event : %s", rdma_event_str(event->event));
         uct_rdmacm_cm_process_event(cm, event);
         UCS_ASYNC_UNBLOCK(uct_rdmacm_cm_get_async(cm));
+        ucs_warn("handled rdma_cm event : %s", rdma_event_str(event->event));
     }
 }
 
