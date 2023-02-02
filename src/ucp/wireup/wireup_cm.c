@@ -452,7 +452,7 @@ static unsigned ucp_cm_client_uct_connect_progress(void *arg)
     UCS_STATIC_ASSERT(ucs_static_array_size(ep_init_flags_prio) > 0);
 
     ucp_wireup_eps_pending_extract(ep, &tmp_pending_queue);
-    for (i = 0; i < ucs_static_array_size(ep_init_flags_prio); ++i) {
+    for (i = 1; i < ucs_static_array_size(ep_init_flags_prio); ++i) {
         ep_init_flags = ep_init_flags_prio[i];
 
         /* Cleanup the previously created UCP EP. The one that was created on
