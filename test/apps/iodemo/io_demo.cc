@@ -90,6 +90,7 @@ typedef struct {
     std::vector<const char*> src_addrs;
     bool                     prereg;
     bool                     per_conn_info;
+    int                      servers_repeat;
 } options_t;
 
 #define LOG_PREFIX  "[DEMO]"
@@ -2651,6 +2652,8 @@ static int set_time(char *str, double *dest_p)
 }
 
 static void adjust_opts(options_t *test_opts) {
+    int repeat_idx, server_idx, server_size;
+
     if (test_opts->operations.size() == 0) {
         test_opts->operations.push_back(IO_WRITE);
     }
@@ -2663,6 +2666,18 @@ static void adjust_opts(options_t *test_opts) {
     } else {
         test_opts->chunk_size = std::min(test_opts->chunk_size,
                                          test_opts->max_data_size);
+    }
+
+    server_size = test_opts->servers.size();
+    if (server_size <= 0 || test_opts->servers_repeat == 1) {
+        return;
+    }
+
+    test_opts->servers.reserve(server_size * test_opts->servers_repeat);
+    for (repeat_idx = 1; repeat_idx < test_opts->servers_repeat; ++repeat_idx) {
+        for (server_idx = 0; server_idx < server_size; ++server_idx) {
+            test_opts->servers.push_back(test_opts->servers[server_idx]);
+        }
     }
 }
 
@@ -2712,9 +2727,10 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
     test_opts->progress_count        = 1;
     test_opts->prereg                = false;
     test_opts->per_conn_info         = false;
+    test_opts->servers_repeat        = 1;
 
     while ((c = getopt(argc, argv,
-                       "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqeADHP:m:L:I:zV")) != -1) {
+                       "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:x:vqeADHP:m:L:I:zV")) != -1) {
         switch (c) {
         case 'p':
             test_opts->port_num = atoi(optarg);
@@ -2868,6 +2884,10 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
         case 'V':
             test_opts->per_conn_info = true;
             break;
+        case 'x':
+            test_opts->servers_repeat = atoi(optarg);
+            assert(test_opts->servers_repeat >= 1);
+            break;
         case 'h':
         default:
             std::cout << "Usage: io_demo [options] [server_address]" << std::endl;
@@ -2909,6 +2929,7 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
                       << std::endl;
             std::cout << "  -L <progress_count>         Maximal number of consecutive ucp_worker_progress invocations" << std::endl;
             std::cout << "  -I <src_addr>               Set source IP address to select network interface on client side" << std::endl;
+            std::cout << "  -x <repeat servers address> Repeat the servers address to establish more connections on client side" << std::endl;
             std::cout << "  -z                          Enable pre-register buffers for zero-copy" << std::endl;
             std::cout << "  -V                          Print per-connection info" << std::endl;
             return -1;
