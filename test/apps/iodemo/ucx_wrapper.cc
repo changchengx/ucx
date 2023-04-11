@@ -17,6 +17,7 @@
 
 #include <algorithm>
 #include <limits>
+#include <atomic>
 
 #include <ucs/debug/memtrack.h>
 
@@ -160,6 +161,13 @@ bool UcxContext::init(const char *name)
     ucp_params.request_size = sizeof(ucx_request);
     ucp_params.name         = name;
 
+    if (_thread_count > 1) {
+        /* one thread use unique ucp_worker.
+         * the ucp_workers shares same context among threads */
+        ucp_params.field_mask        |= UCP_PARAM_FIELD_MT_WORKERS_SHARED;
+        ucp_params.mt_workers_shared  = 1;
+    }
+
     ucs_status_t status = ucp_init(&ucp_params, NULL, &_context);
     if (status != UCS_OK) {
         UCX_LOG << "ucp_init() failed: " << ucs_status_string(status);
@@ -243,7 +251,7 @@ void UcxContext::progress(unsigned count)
 
 uint32_t UcxContext::get_next_conn_id()
 {
-    static uint32_t conn_id = 1;
+    static std::atomic_uint conn_id(1);
     return conn_id++;
 }
 
