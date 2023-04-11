@@ -116,7 +116,8 @@ public:
 
     UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
                bool use_epoll = false,
-               uint64_t client_id = CLIENT_ID_UNDEFINED);
+               uint64_t client_id = CLIENT_ID_UNDEFINED,
+               unsigned thread_count = 1);
 
     virtual ~UcxContext();
 
@@ -276,6 +277,7 @@ private:
     int                         _worker_fd;
     int                         _epoll_fd;
     uint64_t                    _client_id;
+    unsigned                    _thread_count;
 };
 
 

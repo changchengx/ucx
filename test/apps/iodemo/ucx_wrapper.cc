@@ -111,10 +111,12 @@ void UcxContext::UcxDisconnectCallback::operator()(ucs_status_t status)
 }
 
 UcxContext::UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
-                       bool use_epoll, uint64_t client_id) :
+                       bool use_epoll, uint64_t client_id,
+                       unsigned thread_count) :
     _context(NULL), _worker(NULL), _listener(NULL), _iomsg_recv_request(NULL),
     _iomsg_buffer(iomsg_size), _connect_timeout(connect_timeout),
-    _use_am(use_am), _worker_fd(-1), _epoll_fd(-1), _client_id(client_id)
+    _use_am(use_am), _worker_fd(-1), _epoll_fd(-1), _client_id(client_id),
+    _thread_count(thread_count)
 {
     if (use_epoll) {
         _epoll_fd = epoll_create(1);

@@ -878,7 +878,8 @@ protected:
 
     P2pDemoCommon(const options_t &test_opts, uint32_t iov_buf_filler) :
         UcxContext(test_opts.iomsg_size, test_opts.connect_timeout,
-                   test_opts.use_am, test_opts.use_epoll, test_opts.client_id),
+                   test_opts.use_am, test_opts.use_epoll, test_opts.client_id,
+                   test_opts.thread_count),
         _test_opts(test_opts),
         _io_msg_pool(test_opts.iomsg_size, "io messages"),
         _send_callback_pool(0, "send callbacks"),
