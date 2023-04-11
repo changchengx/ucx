@@ -65,6 +65,7 @@ const bool do_assert = false;
 typedef struct {
     std::vector<std::string> servers;
     int                      port_num;
+    unsigned                 thread_count;
     double                   connect_timeout;
     double                   client_timeout;
     long                     retries;
@@ -2753,6 +2754,7 @@ static void usage(void)
     std::cout << "  -D                          Enable debugging mode for IO operation timeouts" << std::endl;
     std::cout << "  -H                          Use human-readable timestamps" << std::endl;
     std::cout << "  -P <interval>               Set report printing interval"  << std::endl;
+    std::cout << "  -T <threads>                Number of threads in test"  << std::endl;
     std::cout << "" << std::endl;
     std::cout << "  -m <memory_type>            Memory type to use. Possible values: host"
 #ifdef HAVE_CUDA
@@ -2768,6 +2770,7 @@ static void usage(void)
 static void init_opts(options_t *test_opts)
 {
     test_opts->port_num              = 1337;
+    test_opts->thread_count          = 1;
     test_opts->connect_timeout       = 20.0;
     test_opts->client_timeout        = 50.0;
     test_opts->retries               = std::numeric_limits<long>::max();
@@ -2798,7 +2801,7 @@ static void init_opts(options_t *test_opts)
 static int parse_args(int argc, char **argv, options_t *test_opts)
 {
     static const char *optstring =
-            "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqeADC:HP:m:L:I:zV";
+            "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqeADC:HP:T:m:L:I:zV";
     char *str;
     bool found;
     int c;
@@ -2940,6 +2943,9 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
             break;
         case 'P':
             test_opts->print_interval = atof(optarg);
+            break;
+        case 'T':
+            test_opts->thread_count = atoi(optarg);
             break;
         case 'm':
             if (!strcmp(optarg, "host")) {
