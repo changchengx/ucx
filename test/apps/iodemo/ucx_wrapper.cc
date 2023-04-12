@@ -21,19 +21,6 @@
 #include <ucs/debug/memtrack.h>
 
 
-#define AM_MSG_ID 0
-
-
-struct ucx_request {
-    UcxCallback                  *callback;
-    UcxConnection                *conn;
-    ucs_status_t                 status;
-    uint32_t                     conn_id;
-    size_t                       recv_length;
-    ucs_list_link_t              pos;
-    const char                   *what;
-};
-
 UcxCallback::~UcxCallback()
 {
 }
