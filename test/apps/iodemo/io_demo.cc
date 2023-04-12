@@ -26,6 +26,7 @@
 #include <malloc.h>
 #include <dlfcn.h>
 #include <set>
+#include <memory>
 
 #ifdef HAVE_CUDA
 #include <cuda.h>
@@ -2989,6 +2990,45 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
     return 0;
 }
 
+static bool
+init_ucp_ctx(const options_t& test_opts, const char* name,
+             std::shared_ptr<ucp_context>& ctx)
+{
+    ucp_context_h ucp_ctx;
+
+    /* Create context */
+    ucp_params_t ucp_params;
+    ucp_params.field_mask   = UCP_PARAM_FIELD_FEATURES |
+                              UCP_PARAM_FIELD_REQUEST_INIT |
+                              UCP_PARAM_FIELD_REQUEST_SIZE |
+                              UCP_PARAM_FIELD_NAME;
+    ucp_params.features     = test_opts.use_am ? UCP_FEATURE_AM :
+                                        UCP_FEATURE_TAG | UCP_FEATURE_STREAM;
+    if (test_opts.use_epoll == true) {
+        ucp_params.features |= UCP_FEATURE_WAKEUP;
+    }
+    ucp_params.request_init = ex_request_init;
+    ucp_params.request_size = sizeof(ucx_request);
+    ucp_params.name         = name;
+
+    /* one thread use unique ucp_worker.
+     * the ucp_workers shares same context among threads */
+    ucp_params.field_mask        |= UCP_PARAM_FIELD_MT_WORKERS_SHARED;
+    ucp_params.mt_workers_shared  = 1;
+
+    ucs_status_t status = ucp_init(&ucp_params, NULL, &ucp_ctx);
+    if (status != UCS_OK) {
+        LOG << "init_ucp_ctx() failed: " << ucs_status_string(status);
+        return false;
+    }
+
+    LOG << "created context " << ucp_ctx
+        << " with " << (test_opts.use_am ? "AM" : "TAG");
+
+    ctx = std::shared_ptr<ucp_context>(ucp_ctx, ucp_cleanup);
+    return true;
+}
+
 static int do_server(const options_t& test_opts)
 {
     DemoServer server(test_opts);
@@ -3060,6 +3100,11 @@ int main(int argc, char **argv)
     ret = parse_args(argc, argv, &test_opts);
     if (ret < 0) {
         return ret;
+    }
+
+    std::shared_ptr<ucp_context> gctx;
+    if (init_ucp_ctx(test_opts, "bidir_iodemo", gctx) == false) {
+        return -1;
     }
 
     if (test_opts.servers.empty()) {
