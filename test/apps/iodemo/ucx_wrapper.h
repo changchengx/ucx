@@ -52,6 +52,9 @@ struct UcxAmDesc {
     const ucp_am_recv_param_t    *_param;
 };
 
+// Expose UcxContext::request_init API
+void ex_request_init(void *request);
+
 /*
  * UCX callback for send/receive completion
  */
@@ -210,6 +213,7 @@ private:
     static uint32_t get_next_conn_id();
 
     static void request_init(void *request);
+    friend void ex_request_init(void *request);
 
     static void request_reset(ucx_request *r);
 

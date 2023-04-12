@@ -238,6 +238,11 @@ void UcxContext::request_init(void *request)
     request_reset(r);
 }
 
+void ex_request_init(void *request)
+{
+    UcxContext::request_init(request);
+}
+
 void UcxContext::request_reset(ucx_request *r)
 {
     r->callback    = NULL;
