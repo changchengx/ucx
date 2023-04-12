@@ -450,7 +450,7 @@ const unsigned IoDemoRandom::_A = 1103515245U;
 const unsigned IoDemoRandom::_C = 12345U;
 const unsigned IoDemoRandom::_M = 0x7fffffffU;
 
-class P2pDemoCommon : public UcxContext {
+class P2pDemoCommon {
 public:
     /* IO header */
     typedef struct {
@@ -876,10 +876,8 @@ protected:
         _status = TERMINATE_SIGNALED;
     }
 
-    P2pDemoCommon(const options_t &test_opts, uint32_t iov_buf_filler) :
-        UcxContext(test_opts.iomsg_size, test_opts.connect_timeout,
-                   test_opts.use_am, test_opts.use_epoll, test_opts.client_id,
-                   test_opts.thread_count),
+    P2pDemoCommon(const options_t &test_opts, UcxContext* ctx,
+            uint32_t iov_buf_filler) :
         _test_opts(test_opts),
         _io_msg_pool(test_opts.iomsg_size, "io messages"),
         _send_callback_pool(0, "send callbacks"),
@@ -889,7 +887,7 @@ protected:
         _data_chunks_pool(test_opts.chunk_size, test_opts.num_offcache_buffers,
                           "data chunks", test_opts.memory_type,
                           test_opts.prereg ? this : NULL),
-        _iov_buf_filler(iov_buf_filler)
+        _iov_buf_filler(iov_buf_filler), _ctx(ctx)
     {
         _status                  = OK;
 
@@ -1075,6 +1073,7 @@ protected:
     BufferMemoryPool<Buffer>         _data_chunks_pool;
     static status_t                  _status;
     const uint32_t                   _iov_buf_filler;
+    UcxContext*                      _ctx;
 };
 
 
@@ -1199,8 +1198,9 @@ public:
         conn_stat_map_t::key_type _map_key;
     };
 
-    DemoServer(const options_t& test_opts) :
-        P2pDemoCommon(test_opts, 0xeeeeeeeeu), _callback_pool(0, "callbacks") {
+    DemoServer(const options_t& test_opts, UcxContext* ctx) :
+        P2pDemoCommon(test_opts, ctx, 0xeeeeeeeeu),
+        _callback_pool(0, "callbacks"), _ctx(ctx) {
     }
 
     ~DemoServer()
@@ -1209,6 +1209,7 @@ public:
     }
 
     void run() {
+        ucp_listener_h listener;
         struct sockaddr_in listen_addr;
         memset(&listen_addr, 0, sizeof(listen_addr));
         listen_addr.sin_family      = AF_INET;
@@ -1216,8 +1217,8 @@ public:
         listen_addr.sin_port        = htons(opts().port_num);
 
         for (long retry = 1; _status == OK; ++retry) {
-            if (listen((const struct sockaddr*)&listen_addr,
-                       sizeof(listen_addr))) {
+            if (ctx->listen((const struct sockaddr*)&listen_addr,
+                            sizeof(listen_addr), &listener, 0)) {
                 break;
             }
 
@@ -1462,6 +1463,7 @@ private:
 private:
     MemoryPool<IoWriteResponseCallback> _callback_pool;
     conn_stat_map_t                     _conn_stat_map;
+    UcxContext*                         _ctx;
 };
 
 
@@ -1620,8 +1622,8 @@ public:
         MemoryPool<IoReadResponseCallback>& _pool;
     };
 
-    DemoClient(const options_t &test_opts) :
-        P2pDemoCommon(test_opts, 0xddddddddu),
+    DemoClient(const options_t &test_opts, UcxContext* ctx) :
+        P2pDemoCommon(test_opts, ctx, 0xddddddddu),
         _next_active_index(0),
         _num_sent(0),
         _num_completed(0),
@@ -2990,18 +2992,25 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
     return 0;
 }
 
-static int do_server(const options_t& test_opts)
+static UcxContext* init_context(const options_t& test_ops)
 {
-    DemoServer server(test_opts);
-    if (!server.init("iodemo_server")) {
-        return -1;
-    }
+    UctxContext* ctx =
+        new UcxContext(test_opts.iomsg_size, test_opts.connect_timeout,
+                       test_opts.use_am, test_opts.use_epoll, test_opts.client_id,
+                       test_opts.thread_count);
+
+    return ctx;
+}
+
+static int do_server(const options_t& test_opts, UcxContext *ctx)
+{
+    DemoServer server(test_opts, ctx);
 
     server.run();
     return 0;
 }
 
-static int do_client(options_t& test_opts)
+static int do_client(options_t& test_opts, UcxContext *ctx)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
@@ -3016,10 +3025,7 @@ static int do_client(options_t& test_opts)
         vlog << " " << test_opts.servers[i];
     }
 
-    DemoClient client(test_opts);
-    if (!client.init("iodemo_client")) {
-        return -1;
-    }
+    DemoClient client(test_opts, ctx);
 
     DemoClient::status_t status = client.run();
     LOG << "Client exit with status '" << DemoClient::get_status_str(status) << "'";
@@ -3063,9 +3069,15 @@ int main(int argc, char **argv)
         return ret;
     }
 
+    UcxContext* ctx = init_context(test_opts);
+    ret = ctx.init("iodemo_bidirection");
+    if (!ret) {
+        return ret;
+    }
+
     if (test_opts.servers.empty()) {
-        return do_server(test_opts);
+        return do_server(test_opts, ctx);
     } else {
-        return do_client(test_opts);
+        return do_client(test_opts, ctx);
     }
 }

@@ -30,6 +30,11 @@
 class UcxConnection;
 struct ucx_request;
 
+struct worker_id {
+    ucp_worker_h worker;
+    unsigned     worker_id;
+};
+
 // Holds details of arrived AM message
 struct UcxAmDesc {
     UcxAmDesc(void *data, const ucp_am_recv_param_t *param) :
@@ -123,7 +128,8 @@ public:
 
     bool init(const char *name);
 
-    bool listen(const struct sockaddr* saddr, size_t addrlen);
+    bool listen(const struct sockaddr* saddr, size_t addrlen,
+                ucp_listener_h* listenerp, unsigned worker_id = 0);
 
     void progress(unsigned count = 1);
 
@@ -228,7 +234,7 @@ private:
 
     void progress_conn_requests();
 
-    void progress_io_message();
+    void progress_io_message(unsigned worker_id);
 
     void progress_failed_connections();
 
@@ -237,7 +243,7 @@ private:
     wait_status_t wait_completion(ucs_status_ptr_t status_ptr, const char *title,
                                   double timeout = 1e6);
 
-    void recv_io_message();
+    void recv_io_message(unsigned worker_id);
 
     void add_connection(UcxConnection *conn);
 
@@ -260,11 +266,11 @@ private:
 
     void destroy_worker();
 
-    void set_am_handler(ucp_am_recv_callback_t cb, void *arg);
+    void set_am_handler(ucp_am_recv_callback_t cb, void *arg, unsigned worker_id);
 
+    std::mutex                  _glock;
     ucp_context_h               _context;
-    ucp_worker_h                _worker;
-    ucp_listener_h              _listener;
+    worker_id*                  _workers;
     conn_map_t                  _conns;
     std::deque<conn_req_t>      _conn_requests;
     timeout_conn_t              _conns_in_progress; // ordered in time

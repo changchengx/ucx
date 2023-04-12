@@ -114,7 +114,7 @@ void UcxContext::UcxDisconnectCallback::operator()(ucs_status_t status)
 UcxContext::UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
                        bool use_epoll, uint64_t client_id,
                        unsigned thread_count) :
-    _context(NULL), _worker(NULL), _listener(NULL), _iomsg_recv_request(NULL),
+    _context(NULL), _workers(NULL),  _iomsg_recv_request(NULL),
     _iomsg_buffer(iomsg_size), _connect_timeout(connect_timeout),
     _use_am(use_am), _worker_fd(-1), _epoll_fd(-1), _client_id(client_id),
     _thread_count(thread_count)
@@ -123,6 +123,10 @@ UcxContext::UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
         _epoll_fd = epoll_create(1);
         assert(_epoll_fd >= 0);
     }
+
+    _workers = malloc(thread_count * 1 * sizeof(_workers[0]));
+    assert(_workers != NULL);
+    memset(_workers, 0, thread_count * 1 * sizeof(_workers[0]));
 }
 
 UcxContext::~UcxContext()
@@ -141,7 +145,7 @@ UcxContext::~UcxContext()
 
 bool UcxContext::init(const char *name)
 {
-    if (_context && _worker) {
+    if (_context && _workers) {
         UCX_LOG << "context is already initialized";
         return true;
     }
@@ -161,12 +165,10 @@ bool UcxContext::init(const char *name)
     ucp_params.request_size = sizeof(ucx_request);
     ucp_params.name         = name;
 
-    if (_thread_count > 1) {
-        /* one thread use unique ucp_worker.
-         * the ucp_workers shares same context among threads */
-        ucp_params.field_mask        |= UCP_PARAM_FIELD_MT_WORKERS_SHARED;
-        ucp_params.mt_workers_shared  = 1;
-    }
+    /* one thread use unique ucp_worker.
+     * the ucp_workers shares same context among threads */
+    ucp_params.field_mask        |= UCP_PARAM_FIELD_MT_WORKERS_SHARED;
+    ucp_params.mt_workers_shared  = 1;
 
     ucs_status_t status = ucp_init(&ucp_params, NULL, &_context);
     if (status != UCS_OK) {
@@ -178,18 +180,24 @@ bool UcxContext::init(const char *name)
             << (_use_am ? "AM" : "TAG");
 
     /* Create worker */
-    ucp_worker_params_t worker_params;
-    worker_params.field_mask  = UCP_WORKER_PARAM_FIELD_THREAD_MODE |
-                                UCP_WORKER_PARAM_FIELD_CLIENT_ID;
-    worker_params.thread_mode = UCS_THREAD_MODE_SINGLE;
-    worker_params.client_id   = _client_id;
+    for (int worker_id = 0; worker_id < _thread_count * 1; worker_id++) {
+	ucp_worker_h _worker = NULL;
 
-    status = ucp_worker_create(_context, &worker_params, &_worker);
-    if (status != UCS_OK) {
-        ucp_cleanup(_context);
-        _context = NULL;
-        UCX_LOG << "ucp_worker_create() failed: " << ucs_status_string(status);
-        return false;
+        ucp_worker_params_t worker_params;
+        worker_params.field_mask  = UCP_WORKER_PARAM_FIELD_THREAD_MODE |
+                                    UCP_WORKER_PARAM_FIELD_CLIENT_ID;
+        worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
+        worker_params.client_id   = _client_id;
+
+        status = ucp_worker_create(_context, &worker_params, &_worker);
+        if (status != UCS_OK) {
+            ucp_cleanup(_context);
+            _context = NULL;
+            UCX_LOG << "ucp_worker_create() failed: " << ucs_status_string(status);
+            return false;
+        }
+        _workers[i].worker    = _worker;
+	_workers[i].worker_id = worker_id;
     }
 
     status = epoll_init();
@@ -202,18 +210,22 @@ bool UcxContext::init(const char *name)
 
     UCX_LOG << "created worker " << _worker;
 
-    if (_use_am) {
-        set_am_handler(am_recv_callback, this);
-    } else {
-        recv_io_message();
+    for (int worker_id = 0; i < _thread_count * 1; worker_id++) {
+        if (_use_am) {
+            set_am_handler(am_recv_callback, this, worker_id);
+        } else {
+            recv_io_message(worker_id);
+        }
     }
 
     return true;
 }
 
-bool UcxContext::listen(const struct sockaddr* saddr, size_t addrlen)
+bool UcxContext::listen(const struct sockaddr* saddr, size_t addrlen,
+                        ucp_listener_h* listenerp, unsigned worker_id)
 {
     ucp_listener_params_t listener_params;
+	ucp_listener_h listener;
 
     listener_params.field_mask       = UCP_LISTENER_PARAM_FIELD_SOCK_ADDR |
                                        UCP_LISTENER_PARAM_FIELD_CONN_HANDLER;
@@ -222,15 +234,17 @@ bool UcxContext::listen(const struct sockaddr* saddr, size_t addrlen)
     listener_params.conn_handler.cb  = connect_callback;
     listener_params.conn_handler.arg = reinterpret_cast<void*>(this);
 
-    ucs_status_t status = ucp_listener_create(_worker, &listener_params,
-                                              &_listener);
+    ucs_status_t status = ucp_listener_create(_workers[worker_id].worker,
+                                              &listener_params, &listener);
     if (status != UCS_OK) {
         UCX_LOG << "ucp_listener_create() failed: " << ucs_status_string(status);
+	    *listenerp = NULL;
         return false;
     }
 
-    UCX_LOG << "started listener " << _listener << " on "
+    UCX_LOG << "started listener " << listener << " on "
             << sockaddr_str(saddr, addrlen);
+	*listenerp = listener;
     return true;
 }
 
@@ -301,6 +315,7 @@ void UcxContext::connect_callback(ucp_conn_request_h conn_req, void *arg)
     conn_request.conn_request = conn_req;
     gettimeofday(&conn_request.arrival_time, NULL);
 
+	std::lock_guard<std::mutex> protect_lock(_glock);
     self->_conn_requests.push_back(conn_request);
 }
 
@@ -372,13 +387,13 @@ ucs_status_t UcxContext::epoll_init()
         return UCS_OK;
     }
 
-    status = ucp_worker_get_efd(_worker, &_worker_fd);
+    status = ucp_worker_get_efd(_workers[0].worker, &_worker_fd);
     if (status != UCS_OK) {
         UCX_LOG << "failed to get ucp_worker fd to be epoll monitored";
         return status;
     }
 
-    status = ucp_worker_arm(_worker);
+    status = ucp_worker_arm(_workers[0].worker);
     if (status == UCS_ERR_BUSY) {
         UCX_LOG << "some events are arrived already";
     } else if (status != UCS_OK) {
@@ -450,7 +465,7 @@ void UcxContext::progress_conn_requests()
     }
 }
 
-void UcxContext::progress_io_message()
+void UcxContext::progress_io_message(unsigned int worker_id = 0)
 {
     if (_use_am || (_iomsg_recv_request->status == UCS_INPROGRESS)) {
         return;
@@ -474,7 +489,7 @@ void UcxContext::progress_io_message()
         }
     }
     request_release(_iomsg_recv_request);
-    recv_io_message();
+    recv_io_message(worker_id);
 }
 
 void UcxContext::progress_failed_connections()
@@ -537,9 +552,9 @@ UcxContext::wait_completion(ucs_status_ptr_t status_ptr, const char *title,
     }
 }
 
-void UcxContext::recv_io_message()
+void UcxContext::recv_io_message(unsigned worker_id)
 {
-    ucs_status_ptr_t status_ptr = ucp_tag_recv_nb(_worker, &_iomsg_buffer[0],
+    ucs_status_ptr_t status_ptr = ucp_tag_recv_nb(_workers[worker_id].worker, &_iomsg_buffer[0],
                                                   _iomsg_buffer.size(),
                                                   ucp_dt_make_contig(1),
                                                   IOMSG_TAG, IOMSG_TAG,
@@ -671,21 +686,28 @@ void UcxContext::destroy_listener()
 
 void UcxContext::destroy_worker()
 {
-    if (!_worker) {
+    if (!_workers) {
         return;
     }
 
     if (_iomsg_recv_request != NULL) {
-        ucp_request_cancel(_worker, _iomsg_recv_request);
+        ucp_request_cancel(_workers[0].worker, _iomsg_recv_request);
         wait_completion(_iomsg_recv_request, "iomsg receive");
     }
 
-    ucp_worker_destroy(_worker);
+    for (int worker_id = 0; i < _thread_count * 1; worker_id++) {
+        if (_workers[i].worker != NULL) {
+            ucp_worker_destroy(_workers[worker_id].worker);
+        }
+        _workers[worker_id].worker = NULL;
+    }
     if (_epoll_fd >= 0) {
         close(_epoll_fd);
         _epoll_fd = -1;
     }
-    _worker = NULL;
+
+    free(_workers);
+    _workers = NULL;
 }
 
 ucs_status_t UcxContext::am_recv_callback(void *arg, const void *header,
@@ -722,17 +744,17 @@ ucs_status_t UcxContext::am_recv_callback(void *arg, const void *header,
     return UCS_OK;
 }
 
-void UcxContext::set_am_handler(ucp_am_recv_callback_t cb, void *arg)
+void UcxContext::set_am_handler(ucp_am_recv_callback_t cb, void *arg, unsigned worker_id)
 {
     ucp_am_handler_param_t param;
 
     param.field_mask = UCP_AM_HANDLER_PARAM_FIELD_ID |
                        UCP_AM_HANDLER_PARAM_FIELD_CB |
                        UCP_AM_HANDLER_PARAM_FIELD_ARG;
-    param.id         = AM_MSG_ID;
+    param.id         = AM_MSG_ID + worker_id;
     param.cb         = cb;
     param.arg        = arg;
-    ucp_worker_set_am_recv_handler(_worker, &param);
+    ucp_worker_set_am_recv_handler(_workers[worker_id].worker, &param);
 }
 
 void *UcxContext::malloc(size_t size, const char *name)
