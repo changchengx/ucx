@@ -3073,7 +3073,10 @@ create_ucp_workers(const options_t& test_opts, std::shared_ptr<ucp_context> ctx,
     return true;
 }
 
-static int do_server(const options_t& test_opts)
+static int do_server(const options_t& test_opts,
+                     std::shared_ptr<ucp_context> gctx,
+                     std::shared_ptr<ucp_worker> worker,
+                     unsigned id)
 {
     DemoServer server(test_opts);
     if (!server.init("iodemo_server")) {
@@ -3084,7 +3087,10 @@ static int do_server(const options_t& test_opts)
     return 0;
 }
 
-static int do_client(options_t& test_opts)
+static int do_client(options_t& test_opts,
+                     std::shared_ptr<ucp_context> gctx,
+                     std::shared_ptr<ucp_worker> worker,
+                     unsigned id)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
@@ -3157,8 +3163,8 @@ int main(int argc, char **argv)
     }
 
     if (test_opts.servers.empty()) {
-        return do_server(test_opts);
+        return do_server(test_opts, gctx, workers[0], 0);
     } else {
-        return do_client(test_opts);
+        return do_client(test_opts, gctx, workers[0], 0);
     }
 }
