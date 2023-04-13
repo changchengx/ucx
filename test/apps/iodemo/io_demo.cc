@@ -892,7 +892,7 @@ protected:
         _data_chunks_pool(test_opts.chunk_size, test_opts.num_offcache_buffers,
                           "data chunks", test_opts.memory_type,
                           test_opts.prereg ? this : NULL),
-        _iov_buf_filler(iov_buf_filler)
+        _iov_buf_filler(iov_buf_filler), id(id)
     {
         _status                  = OK;
 
@@ -1079,6 +1079,7 @@ protected:
     BufferMemoryPool<Buffer>         _data_chunks_pool;
     static status_t                  _status;
     const uint32_t                   _iov_buf_filler;
+    const unsigned                   id;
 };
 
 
@@ -1219,7 +1220,7 @@ public:
         memset(&listen_addr, 0, sizeof(listen_addr));
         listen_addr.sin_family      = AF_INET;
         listen_addr.sin_addr.s_addr = INADDR_ANY;
-        listen_addr.sin_port        = htons(opts().port_num);
+        listen_addr.sin_port        = htons(opts().port_num + id);
 
         for (long retry = 1; _status == OK; ++retry) {
             if (listen((const struct sockaddr*)&listen_addr,
