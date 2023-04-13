@@ -3029,6 +3029,50 @@ init_ucp_ctx(const options_t& test_opts, const char* name,
     return true;
 }
 
+static uint64_t get_worker_uuid(unsigned worker_id)
+{
+    static uint32_t hostid = gethostid();
+    static uint32_t pid    = getpid();
+    uint64_t client_id;
+
+    client_id = ((hostid & 0xffff) << 16) | (worker_id & 0xffff);
+    client_id = (client_id << 32) | pid;
+
+    return client_id;
+}
+
+static bool
+create_ucp_workers(const options_t& test_opts, std::shared_ptr<ucp_context> ctx,
+                   std::vector<std::shared_ptr<ucp_worker> > &workers,
+                   bool set_unique_id = false)
+{
+    for (int worker_id = 0; worker_id < test_opts.thread_count * 1; worker_id++) {
+        ucp_worker_h worker;
+
+        ucp_worker_params_t worker_params;
+        worker_params.field_mask  = UCP_WORKER_PARAM_FIELD_THREAD_MODE |
+                                    UCP_WORKER_PARAM_FIELD_CLIENT_ID;
+        worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
+
+        if (set_unique_id == false) {
+            worker_params.client_id   = test_opts.client_id;
+        } else {
+            worker_params.client_id   = get_worker_uuid(worker_id);
+        }
+
+        ucs_status_t status = ucp_worker_create(ctx.get(), &worker_params, &worker);
+        if (status != UCS_OK) {
+            LOG << "create_workers() failed: " << ucs_status_string(status);
+            return false;
+        }
+
+        LOG << "created worker " << worker;
+        workers.push_back(std::shared_ptr<ucp_worker>(worker, ucp_worker_destroy));
+    }
+
+    return true;
+}
+
 static int do_server(const options_t& test_opts)
 {
     DemoServer server(test_opts);
@@ -3104,6 +3148,11 @@ int main(int argc, char **argv)
 
     std::shared_ptr<ucp_context> gctx;
     if (init_ucp_ctx(test_opts, "bidir_iodemo", gctx) == false) {
+        return -1;
+    }
+
+    std::vector<std::shared_ptr<ucp_worker> > workers;
+    if (create_ucp_workers(test_opts, gctx, workers) == false) {
         return -1;
     }
 
