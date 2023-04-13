@@ -896,6 +896,7 @@ protected:
     {
         _status                  = OK;
 
+        /* Keep reinstalled same signal action */
         struct sigaction new_sigaction;
         new_sigaction.sa_handler = signal_terminate_handler;
         new_sigaction.sa_flags   = 0;
