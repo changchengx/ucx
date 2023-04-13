@@ -29,6 +29,7 @@
 #include <memory>
 #include <thread>
 #include <functional>
+#include <future>
 
 #ifdef HAVE_CUDA
 #include <cuda.h>
@@ -3086,21 +3087,24 @@ create_ucp_workers(const options_t& test_opts, std::shared_ptr<ucp_context> ctx,
 static int do_server(const options_t& test_opts,
                      std::shared_ptr<ucp_context> gctx,
                      std::shared_ptr<ucp_worker> worker,
-                     unsigned id)
+                     unsigned id, std::promise<int> && prms)
 {
     DemoServer server(test_opts, gctx, worker, id);
     if (!server.init("iodemo_server")) {
+        prms.set_value(-1);
         return -1;
     }
 
     server.run();
+
+    prms.set_value(0);
     return 0;
 }
 
 static int do_client(options_t& test_opts,
                      std::shared_ptr<ucp_context> gctx,
                      std::shared_ptr<ucp_worker> worker,
-                     unsigned id)
+                     unsigned id, std::promise<int> && prms)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
@@ -3117,11 +3121,15 @@ static int do_client(options_t& test_opts,
 
     DemoClient client(test_opts, gctx, worker, id);
     if (!client.init("iodemo_client")) {
+        prms.set_value(-1);
         return -1;
     }
 
     DemoClient::status_t status = client.run();
     LOG << "Client exit with status '" << DemoClient::get_status_str(status) << "'";
+
+    prms.set_value(((status == DemoClient::OK) || (status == DemoClient::RUNTIME_EXCEEDED)) ? 0 : -1);
+
     return ((status == DemoClient::OK) ||
             (status == DemoClient::RUNTIME_EXCEEDED)) ? 0 : -1;
 }
@@ -3152,7 +3160,7 @@ int main(int argc, char **argv)
 {
     options_t test_opts;
     int ret;
-    std::thread thread;
+    std::vector<std::pair<std::thread, std::future<int> > > threads;
 
     print_info(argc, argv);
 
@@ -3174,14 +3182,29 @@ int main(int argc, char **argv)
     }
 
     if (test_opts.servers.empty()) {
-        thread = std::thread(do_server, std::ref(test_opts),
-                             gctx, workers[0], 0);
+        std::promise<int> prms;
+        std::future<int> fur = prms.get_future();
+
+        std::thread thread(do_server, std::ref(test_opts), gctx,
+                           workers[0], 0, std::move(prms));
+        threads.push_back(std::make_pair(std::move(thread), std::move(fur)));
     } else {
-        thread = std::thread(do_client, std::ref(test_opts),
-                             gctx, workers[0], 0);
+        std::promise<int> prms;
+        std::future<int> fur = prms.get_future();
+
+        std::thread thread(do_client, std::ref(test_opts), gctx,
+                           workers[0], 0, std::move(prms));
+        threads.push_back(std::make_pair(std::move(thread),std::move(fur)));
     }
 
-    thread.join();
+    for (auto& thread_rst : threads) {
+        auto thread = std::move(thread_rst.first);
+        auto fur    = std::move(thread_rst.second);
+        if (ret == 0) {
+            ret = fur.get();
+        }
+        thread.join();
+    }
 
-    return 0;
+    return ret;
 }
