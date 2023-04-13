@@ -27,6 +27,8 @@
 #include <dlfcn.h>
 #include <set>
 #include <memory>
+#include <thread>
+#include <functional>
 
 #ifdef HAVE_CUDA
 #include <cuda.h>
@@ -3150,6 +3152,7 @@ int main(int argc, char **argv)
 {
     options_t test_opts;
     int ret;
+    std::thread thread;
 
     print_info(argc, argv);
 
@@ -3171,8 +3174,14 @@ int main(int argc, char **argv)
     }
 
     if (test_opts.servers.empty()) {
-        return do_server(test_opts, gctx, workers[0], 0);
+        thread = std::thread(do_server, std::ref(test_opts),
+                             gctx, workers[0], 0);
     } else {
-        return do_client(test_opts, gctx, workers[0], 0);
+        thread = std::thread(do_client, std::ref(test_opts),
+                             gctx, workers[0], 0);
     }
+
+    thread.join();
+
+    return 0;
 }
