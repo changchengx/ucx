@@ -3160,7 +3160,7 @@ int main(int argc, char **argv)
 {
     options_t test_opts;
     int ret;
-    std::vector<std::pair<std::thread, std::future<int> > > threads;
+    std::vector<std::pair<std::thread, std::future<int> > > cthreads;
 
     print_info(argc, argv);
 
@@ -3176,8 +3176,8 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    std::vector<std::shared_ptr<ucp_worker> > workers;
-    if (create_ucp_workers(test_opts, gctx, workers) == false) {
+    std::vector<std::shared_ptr<ucp_worker> > cworkers;
+    if (create_ucp_workers(test_opts, gctx, cworkers) == false) {
         return -1;
     }
 
@@ -3186,18 +3186,18 @@ int main(int argc, char **argv)
         std::future<int> fur = prms.get_future();
 
         std::thread thread(do_server, std::ref(test_opts), gctx,
-                           workers[0], 0, std::move(prms));
-        threads.push_back(std::make_pair(std::move(thread), std::move(fur)));
+                           cworkers[0], 0, std::move(prms));
+        cthreads.push_back(std::make_pair(std::move(thread), std::move(fur)));
     } else {
         std::promise<int> prms;
         std::future<int> fur = prms.get_future();
 
         std::thread thread(do_client, std::ref(test_opts), gctx,
-                           workers[0], 0, std::move(prms));
-        threads.push_back(std::make_pair(std::move(thread),std::move(fur)));
+                           cworkers[0], 0, std::move(prms));
+        cthreads.push_back(std::make_pair(std::move(thread),std::move(fur)));
     }
 
-    for (auto& thread_rst : threads) {
+    for (auto& thread_rst : cthreads) {
         auto thread = std::move(thread_rst.first);
         auto fur    = std::move(thread_rst.second);
         if (ret == 0) {
