@@ -877,9 +877,12 @@ protected:
         _status = TERMINATE_SIGNALED;
     }
 
-    P2pDemoCommon(const options_t &test_opts, uint32_t iov_buf_filler) :
+    P2pDemoCommon(const options_t &test_opts, std::shared_ptr<ucp_context> gctx,
+                  std::shared_ptr<ucp_worker> worker, unsigned id,
+                  uint32_t iov_buf_filler) :
         UcxContext(test_opts.iomsg_size, test_opts.connect_timeout,
-                   test_opts.use_am, test_opts.use_epoll, test_opts.client_id),
+                   test_opts.use_am, gctx, worker, id,
+                   test_opts.use_epoll, test_opts.client_id),
         _test_opts(test_opts),
         _io_msg_pool(test_opts.iomsg_size, "io messages"),
         _send_callback_pool(0, "send callbacks"),
@@ -1199,8 +1202,10 @@ public:
         conn_stat_map_t::key_type _map_key;
     };
 
-    DemoServer(const options_t& test_opts) :
-        P2pDemoCommon(test_opts, 0xeeeeeeeeu), _callback_pool(0, "callbacks") {
+    DemoServer(const options_t& test_opts, std::shared_ptr<ucp_context> gctx,
+               std::shared_ptr<ucp_worker> worker, unsigned id) :
+        P2pDemoCommon(test_opts, gctx, worker, id, 0xeeeeeeeeu),
+        _callback_pool(0, "callbacks") {
     }
 
     ~DemoServer()
@@ -1620,8 +1625,9 @@ public:
         MemoryPool<IoReadResponseCallback>& _pool;
     };
 
-    DemoClient(const options_t &test_opts) :
-        P2pDemoCommon(test_opts, 0xddddddddu),
+    DemoClient(const options_t &test_opts, std::shared_ptr<ucp_context> gctx,
+               std::shared_ptr<ucp_worker> worker, unsigned id) :
+        P2pDemoCommon(test_opts, gctx, worker, id, 0xddddddddu),
         _next_active_index(0),
         _num_sent(0),
         _num_completed(0),
@@ -3078,7 +3084,7 @@ static int do_server(const options_t& test_opts,
                      std::shared_ptr<ucp_worker> worker,
                      unsigned id)
 {
-    DemoServer server(test_opts);
+    DemoServer server(test_opts, gctx, worker, id);
     if (!server.init("iodemo_server")) {
         return -1;
     }
@@ -3105,7 +3111,7 @@ static int do_client(options_t& test_opts,
         vlog << " " << test_opts.servers[i];
     }
 
-    DemoClient client(test_opts);
+    DemoClient client(test_opts, gctx, worker, id);
     if (!client.init("iodemo_client")) {
         return -1;
     }

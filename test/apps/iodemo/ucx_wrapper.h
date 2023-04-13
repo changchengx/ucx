@@ -22,6 +22,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <memory>
 #include <sys/epoll.h>
 
 #define MAX_LOG_PREFIX_SIZE   64
@@ -130,6 +131,8 @@ public:
     static const uint64_t CLIENT_ID_UNDEFINED = 0;
 
     UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
+			   std::shared_ptr<ucp_context> gctx,
+			   std::shared_ptr<ucp_worker> worker, unsigned id,
                bool use_epoll = false,
                uint64_t client_id = CLIENT_ID_UNDEFINED);
 
