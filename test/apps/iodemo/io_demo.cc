@@ -3178,7 +3178,7 @@ int main(int argc, char **argv)
     }
 
     std::vector<std::shared_ptr<ucp_worker> > cworkers;
-    if (create_ucp_workers(test_opts, gctx, cworkers) == false) {
+    if (create_ucp_workers(test_opts, gctx, cworkers, true) == false) {
         return -1;
     }
 
