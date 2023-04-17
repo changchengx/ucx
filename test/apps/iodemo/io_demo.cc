@@ -3084,11 +3084,33 @@ create_ucp_workers(const options_t& test_opts, std::shared_ptr<ucp_context> ctx,
     return true;
 }
 
+uint32_t get_worker_id(unsigned thread_idx, unsigned workers_size,
+                       bool round_robin = true)
+{
+    pid_t tid = ucs_get_tid();
+
+    ASSERTV(round_robin == true) << "Only support round_robin method now";
+
+    if (round_robin == true) {
+        ASSERTV(thread_idx < workers_size)
+        << "thread number needs to be equal with workers number";
+
+        return thread_idx % workers_size;
+    } else {
+        return tid % workers_size;
+    }
+}
+
 static int do_server(const options_t& test_opts,
                      std::shared_ptr<ucp_context> gctx,
-                     std::shared_ptr<ucp_worker> worker,
+                     std::vector<std::shared_ptr<ucp_worker> >& workers,
                      unsigned id, std::promise<int> && prms)
 {
+    uint32_t worker_idx = get_worker_id(id, workers.size());
+
+    std::shared_ptr<ucp_worker> worker = workers[worker_idx];
+    LOG << "server thread : " << id << ", use worker id " << worker_idx;
+
     DemoServer server(test_opts, gctx, worker, id);
     if (!server.init("iodemo_server")) {
         prms.set_value(-1);
@@ -3103,7 +3125,7 @@ static int do_server(const options_t& test_opts,
 
 static int do_client(options_t& test_opts,
                      std::shared_ptr<ucp_context> gctx,
-                     std::shared_ptr<ucp_worker> worker,
+                     std::vector<std::shared_ptr<ucp_worker> >& workers,
                      unsigned id, std::promise<int> && prms)
 {
     IoDemoRandom::srand(test_opts.random_seed);
@@ -3118,6 +3140,11 @@ static int do_client(options_t& test_opts,
     for (size_t i = 0; i < test_opts.servers.size(); ++i) {
         vlog << " " << test_opts.servers[i];
     }
+
+    uint32_t worker_idx = get_worker_id(id, workers.size());
+
+    std::shared_ptr<ucp_worker> worker = workers[worker_idx];
+    LOG << "client thread : " << id << ", use worker id " << worker_idx;
 
     DemoClient client(test_opts, gctx, worker, id);
     if (!client.init("iodemo_client")) {
@@ -3193,7 +3220,7 @@ int main(int argc, char **argv)
             std::future<int> fur = prms.get_future();
 
             std::thread thread(do_server, std::ref(test_opts), gctx,
-                               sworkers[0], idx, std::move(prms));
+                               std::ref(sworkers), idx, std::move(prms));
             sthreads.push_back(std::make_pair(std::move(thread), std::move(fur)));
         }
     } else {
@@ -3202,7 +3229,7 @@ int main(int argc, char **argv)
             std::future<int> fur = prms.get_future();
 
             std::thread thread(do_client, std::ref(test_opts), gctx,
-                               cworkers[0], idx, std::move(prms));
+                               std::ref(cworkers), idx, std::move(prms));
             cthreads.push_back(std::make_pair(std::move(thread),std::move(fur)));
         }
     }
