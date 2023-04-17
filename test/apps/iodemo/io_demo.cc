@@ -3214,24 +3214,22 @@ int main(int argc, char **argv)
         return -1;
     }
 
-    if (test_opts.servers.empty()) {
-        for (int idx = 0; idx < test_opts.thread_count; idx++) {
-            std::promise<int> prms;
-            std::future<int> fur = prms.get_future();
+    for (int idx = 0; idx < test_opts.thread_count; idx++) {
+        std::promise<int> prms;
+        std::future<int> fur = prms.get_future();
 
-            std::thread thread(do_server, std::ref(test_opts), gctx,
-                               std::ref(sworkers), idx, std::move(prms));
-            sthreads.push_back(std::make_pair(std::move(thread), std::move(fur)));
-        }
-    } else {
-        for (int idx = 0; idx < test_opts.thread_count; idx++) {
-            std::promise<int> prms;
-            std::future<int> fur = prms.get_future();
+        std::thread thread(do_server, std::ref(test_opts), gctx,
+                           std::ref(sworkers), idx, std::move(prms));
+        sthreads.push_back(std::make_pair(std::move(thread), std::move(fur)));
+    }
 
-            std::thread thread(do_client, std::ref(test_opts), gctx,
-                               std::ref(cworkers), idx, std::move(prms));
-            cthreads.push_back(std::make_pair(std::move(thread),std::move(fur)));
-        }
+    for (int idx = 0; idx < test_opts.thread_count; idx++) {
+        std::promise<int> prms;
+        std::future<int> fur = prms.get_future();
+
+        std::thread thread(do_client, std::ref(test_opts), gctx,
+                           std::ref(cworkers), idx, std::move(prms));
+        cthreads.push_back(std::make_pair(std::move(thread),std::move(fur)));
     }
 
     for (auto& thread_rst : cthreads) {
