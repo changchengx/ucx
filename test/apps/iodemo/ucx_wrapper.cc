@@ -21,19 +21,6 @@
 #include <ucs/debug/memtrack.h>
 
 
-#define AM_MSG_ID 0
-
-
-struct ucx_request {
-    UcxCallback                  *callback;
-    UcxConnection                *conn;
-    ucs_status_t                 status;
-    uint32_t                     conn_id;
-    size_t                       recv_length;
-    ucs_list_link_t              pos;
-    const char                   *what;
-};
-
 UcxCallback::~UcxCallback()
 {
 }
@@ -111,8 +98,10 @@ void UcxContext::UcxDisconnectCallback::operator()(ucs_status_t status)
 }
 
 UcxContext::UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
+                       std::shared_ptr<ucp_context> gctx,
+                       std::shared_ptr<ucp_worker> worker, unsigned id,
                        bool use_epoll, uint64_t client_id) :
-    _context(NULL), _worker(NULL), _listener(NULL), _iomsg_recv_request(NULL),
+    _context(gctx.get()), _worker(worker.get()), _listener(NULL), _iomsg_recv_request(NULL),
     _iomsg_buffer(iomsg_size), _connect_timeout(connect_timeout),
     _use_am(use_am), _worker_fd(-1), _epoll_fd(-1), _client_id(client_id)
 {
@@ -131,66 +120,17 @@ UcxContext::~UcxContext()
     assert(_failed_conns.empty());
 
     destroy_worker();
-    if (_context) {
-        ucp_cleanup(_context);
-    }
+    _context = NULL;
 }
 
 bool UcxContext::init(const char *name)
 {
-    if (_context && _worker) {
-        UCX_LOG << "context is already initialized";
-        return true;
-    }
-
-    /* Create context */
-    ucp_params_t ucp_params;
-    ucp_params.field_mask   = UCP_PARAM_FIELD_FEATURES |
-                              UCP_PARAM_FIELD_REQUEST_INIT |
-                              UCP_PARAM_FIELD_REQUEST_SIZE |
-                              UCP_PARAM_FIELD_NAME;
-    ucp_params.features     = _use_am ? UCP_FEATURE_AM :
-                                        UCP_FEATURE_TAG | UCP_FEATURE_STREAM;
-    if (_epoll_fd != -1) {
-        ucp_params.features |= UCP_FEATURE_WAKEUP;
-    }
-    ucp_params.request_init = request_init;
-    ucp_params.request_size = sizeof(ucx_request);
-    ucp_params.name         = name;
-
-    ucs_status_t status = ucp_init(&ucp_params, NULL, &_context);
-    if (status != UCS_OK) {
-        UCX_LOG << "ucp_init() failed: " << ucs_status_string(status);
-        return false;
-    }
-
-    UCX_LOG << "created context " << _context << " with "
-            << (_use_am ? "AM" : "TAG");
-
-    /* Create worker */
-    ucp_worker_params_t worker_params;
-    worker_params.field_mask  = UCP_WORKER_PARAM_FIELD_THREAD_MODE |
-                                UCP_WORKER_PARAM_FIELD_CLIENT_ID;
-    worker_params.thread_mode = UCS_THREAD_MODE_SINGLE;
-    worker_params.client_id   = _client_id;
-
-    status = ucp_worker_create(_context, &worker_params, &_worker);
-    if (status != UCS_OK) {
-        ucp_cleanup(_context);
-        _context = NULL;
-        UCX_LOG << "ucp_worker_create() failed: " << ucs_status_string(status);
-        return false;
-    }
-
-    status = epoll_init();
+    ucs_status_t status = epoll_init();
     if (status != UCS_OK) {
         destroy_worker();
-        ucp_cleanup(_context);
         _context = NULL;
         return false;
     }
-
-    UCX_LOG << "created worker " << _worker;
 
     if (_use_am) {
         set_am_handler(am_recv_callback, this);
@@ -249,6 +189,11 @@ void UcxContext::request_init(void *request)
 {
     ucx_request *r = reinterpret_cast<ucx_request*>(request);
     request_reset(r);
+}
+
+void ex_request_init(void *request)
+{
+    UcxContext::request_init(request);
 }
 
 void UcxContext::request_reset(ucx_request *r)
@@ -661,16 +606,11 @@ void UcxContext::destroy_listener()
 
 void UcxContext::destroy_worker()
 {
-    if (!_worker) {
-        return;
-    }
-
     if (_iomsg_recv_request != NULL) {
         ucp_request_cancel(_worker, _iomsg_recv_request);
         wait_completion(_iomsg_recv_request, "iomsg receive");
     }
 
-    ucp_worker_destroy(_worker);
     if (_epoll_fd >= 0) {
         close(_epoll_fd);
         _epoll_fd = -1;

@@ -12,6 +12,7 @@
 #include <ucs/datastruct/list.h>
 #include <ucs/sys/math.h>
 #include <ucs/sys/sock.h>
+#include <ucs/sys/sys.h>
 #include <deque>
 #include <exception>
 #include <iostream>
@@ -22,13 +23,26 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <memory>
 #include <sys/epoll.h>
 
 #define MAX_LOG_PREFIX_SIZE   64
+#define AM_MSG_ID             0
 
 /* Forward declarations */
 class UcxConnection;
-struct ucx_request;
+class UcxCallback;
+
+
+struct ucx_request {
+    UcxCallback                  *callback;
+    UcxConnection                *conn;
+    ucs_status_t                 status;
+    uint32_t                     conn_id;
+    size_t                       recv_length;
+    ucs_list_link_t              pos;
+    const char                   *what;
+};
 
 // Holds details of arrived AM message
 struct UcxAmDesc {
@@ -39,6 +53,9 @@ struct UcxAmDesc {
     void                         *_data;
     const ucp_am_recv_param_t    *_param;
 };
+
+// Expose UcxContext::request_init API
+void ex_request_init(void *request);
 
 /*
  * UCX callback for send/receive completion
@@ -115,6 +132,8 @@ public:
     static const uint64_t CLIENT_ID_UNDEFINED = 0;
 
     UcxContext(size_t iomsg_size, double connect_timeout, bool use_am,
+			   std::shared_ptr<ucp_context> gctx,
+			   std::shared_ptr<ucp_worker> worker, unsigned id,
                bool use_epoll = false,
                uint64_t client_id = CLIENT_ID_UNDEFINED);
 
@@ -198,6 +217,7 @@ private:
     static uint32_t get_next_conn_id();
 
     static void request_init(void *request);
+    friend void ex_request_init(void *request);
 
     static void request_reset(ucx_request *r);
 

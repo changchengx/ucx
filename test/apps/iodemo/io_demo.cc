@@ -26,6 +26,10 @@
 #include <malloc.h>
 #include <dlfcn.h>
 #include <set>
+#include <memory>
+#include <thread>
+#include <functional>
+#include <future>
 
 #ifdef HAVE_CUDA
 #include <cuda.h>
@@ -65,6 +69,7 @@ const bool do_assert = false;
 typedef struct {
     std::vector<std::string> servers;
     int                      port_num;
+    unsigned                 thread_count;
     double                   connect_timeout;
     double                   client_timeout;
     long                     retries;
@@ -875,9 +880,12 @@ protected:
         _status = TERMINATE_SIGNALED;
     }
 
-    P2pDemoCommon(const options_t &test_opts, uint32_t iov_buf_filler) :
+    P2pDemoCommon(const options_t &test_opts, std::shared_ptr<ucp_context> gctx,
+                  std::shared_ptr<ucp_worker> worker, unsigned id,
+                  uint32_t iov_buf_filler) :
         UcxContext(test_opts.iomsg_size, test_opts.connect_timeout,
-                   test_opts.use_am, test_opts.use_epoll, test_opts.client_id),
+                   test_opts.use_am, gctx, worker, id,
+                   test_opts.use_epoll, test_opts.client_id),
         _test_opts(test_opts),
         _io_msg_pool(test_opts.iomsg_size, "io messages"),
         _send_callback_pool(0, "send callbacks"),
@@ -887,10 +895,11 @@ protected:
         _data_chunks_pool(test_opts.chunk_size, test_opts.num_offcache_buffers,
                           "data chunks", test_opts.memory_type,
                           test_opts.prereg ? this : NULL),
-        _iov_buf_filler(iov_buf_filler)
+        _iov_buf_filler(iov_buf_filler), id(id)
     {
         _status                  = OK;
 
+        /* Keep reinstalled same signal action */
         struct sigaction new_sigaction;
         new_sigaction.sa_handler = signal_terminate_handler;
         new_sigaction.sa_flags   = 0;
@@ -1073,6 +1082,7 @@ protected:
     BufferMemoryPool<Buffer>         _data_chunks_pool;
     static status_t                  _status;
     const uint32_t                   _iov_buf_filler;
+    const unsigned                   id;
 };
 
 
@@ -1197,8 +1207,10 @@ public:
         conn_stat_map_t::key_type _map_key;
     };
 
-    DemoServer(const options_t& test_opts) :
-        P2pDemoCommon(test_opts, 0xeeeeeeeeu), _callback_pool(0, "callbacks") {
+    DemoServer(const options_t& test_opts, std::shared_ptr<ucp_context> gctx,
+               std::shared_ptr<ucp_worker> worker, unsigned id) :
+        P2pDemoCommon(test_opts, gctx, worker, id, 0xeeeeeeeeu),
+        _callback_pool(0, "callbacks") {
     }
 
     ~DemoServer()
@@ -1211,7 +1223,7 @@ public:
         memset(&listen_addr, 0, sizeof(listen_addr));
         listen_addr.sin_family      = AF_INET;
         listen_addr.sin_addr.s_addr = INADDR_ANY;
-        listen_addr.sin_port        = htons(opts().port_num);
+        listen_addr.sin_port        = htons(opts().port_num + id);
 
         for (long retry = 1; _status == OK; ++retry) {
             if (listen((const struct sockaddr*)&listen_addr,
@@ -1618,8 +1630,9 @@ public:
         MemoryPool<IoReadResponseCallback>& _pool;
     };
 
-    DemoClient(const options_t &test_opts) :
-        P2pDemoCommon(test_opts, 0xddddddddu),
+    DemoClient(const options_t &test_opts, std::shared_ptr<ucp_context> gctx,
+               std::shared_ptr<ucp_worker> worker, unsigned id) :
+        P2pDemoCommon(test_opts, gctx, worker, id, 0xddddddddu),
         _next_active_index(0),
         _num_sent(0),
         _num_completed(0),
@@ -2753,6 +2766,7 @@ static void usage(void)
     std::cout << "  -D                          Enable debugging mode for IO operation timeouts" << std::endl;
     std::cout << "  -H                          Use human-readable timestamps" << std::endl;
     std::cout << "  -P <interval>               Set report printing interval"  << std::endl;
+    std::cout << "  -T <threads>                Number of threads in test"  << std::endl;
     std::cout << "" << std::endl;
     std::cout << "  -m <memory_type>            Memory type to use. Possible values: host"
 #ifdef HAVE_CUDA
@@ -2768,6 +2782,7 @@ static void usage(void)
 static void init_opts(options_t *test_opts)
 {
     test_opts->port_num              = 1337;
+    test_opts->thread_count          = 1;
     test_opts->connect_timeout       = 20.0;
     test_opts->client_timeout        = 50.0;
     test_opts->retries               = std::numeric_limits<long>::max();
@@ -2798,7 +2813,7 @@ static void init_opts(options_t *test_opts)
 static int parse_args(int argc, char **argv, options_t *test_opts)
 {
     static const char *optstring =
-            "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqeADC:HP:m:L:I:zV";
+            "p:c:r:d:b:i:w:a:k:o:t:n:l:s:y:vqeADC:HP:T:m:L:I:zV";
     char *str;
     bool found;
     int c;
@@ -2941,6 +2956,9 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
         case 'P':
             test_opts->print_interval = atof(optarg);
             break;
+        case 'T':
+            test_opts->thread_count = atoi(optarg);
+            break;
         case 'm':
             if (!strcmp(optarg, "host")) {
                 test_opts->memory_type = UCS_MEMORY_TYPE_HOST;
@@ -2983,18 +3001,132 @@ static int parse_args(int argc, char **argv, options_t *test_opts)
     return 0;
 }
 
-static int do_server(const options_t& test_opts)
+static bool
+init_ucp_ctx(const options_t& test_opts, const char* name,
+             std::shared_ptr<ucp_context>& ctx)
 {
-    DemoServer server(test_opts);
+    ucp_context_h ucp_ctx;
+
+    /* Create context */
+    ucp_params_t ucp_params;
+    ucp_params.field_mask   = UCP_PARAM_FIELD_FEATURES |
+                              UCP_PARAM_FIELD_REQUEST_INIT |
+                              UCP_PARAM_FIELD_REQUEST_SIZE |
+                              UCP_PARAM_FIELD_NAME;
+    ucp_params.features     = test_opts.use_am ? UCP_FEATURE_AM :
+                                        UCP_FEATURE_TAG | UCP_FEATURE_STREAM;
+    if (test_opts.use_epoll == true) {
+        ucp_params.features |= UCP_FEATURE_WAKEUP;
+    }
+    ucp_params.request_init = ex_request_init;
+    ucp_params.request_size = sizeof(ucx_request);
+    ucp_params.name         = name;
+
+    /* one thread use unique ucp_worker.
+     * the ucp_workers shares same context among threads */
+    ucp_params.field_mask        |= UCP_PARAM_FIELD_MT_WORKERS_SHARED;
+    ucp_params.mt_workers_shared  = 1;
+
+    ucs_status_t status = ucp_init(&ucp_params, NULL, &ucp_ctx);
+    if (status != UCS_OK) {
+        LOG << "init_ucp_ctx() failed: " << ucs_status_string(status);
+        return false;
+    }
+
+    LOG << "created context " << ucp_ctx
+        << " with " << (test_opts.use_am ? "AM" : "TAG");
+
+    ctx = std::shared_ptr<ucp_context>(ucp_ctx, ucp_cleanup);
+    return true;
+}
+
+static uint64_t get_worker_uuid(unsigned worker_id)
+{
+    static uint32_t hostid = gethostid();
+    static uint32_t pid    = getpid();
+    uint64_t client_id;
+
+    client_id = ((hostid & 0xffff) << 16) | (worker_id & 0xffff);
+    client_id = (client_id << 32) | pid;
+
+    return client_id;
+}
+
+static bool
+create_ucp_workers(const options_t& test_opts, std::shared_ptr<ucp_context> ctx,
+                   std::vector<std::shared_ptr<ucp_worker> > &workers,
+                   bool set_unique_id = false)
+{
+    for (int worker_id = 0; worker_id < test_opts.thread_count * 1; worker_id++) {
+        ucp_worker_h worker;
+
+        ucp_worker_params_t worker_params;
+        worker_params.field_mask  = UCP_WORKER_PARAM_FIELD_THREAD_MODE |
+                                    UCP_WORKER_PARAM_FIELD_CLIENT_ID;
+        worker_params.thread_mode = UCS_THREAD_MODE_MULTI;
+
+        if (set_unique_id == false) {
+            worker_params.client_id   = test_opts.client_id;
+        } else {
+            worker_params.client_id   = get_worker_uuid(worker_id);
+        }
+
+        ucs_status_t status = ucp_worker_create(ctx.get(), &worker_params, &worker);
+        if (status != UCS_OK) {
+            LOG << "create_workers() failed: " << ucs_status_string(status);
+            return false;
+        }
+
+        LOG << "created worker " << worker;
+        workers.push_back(std::shared_ptr<ucp_worker>(worker, ucp_worker_destroy));
+    }
+
+    return true;
+}
+
+uint32_t get_worker_id(unsigned thread_idx, unsigned workers_size,
+                       bool round_robin = true)
+{
+    pid_t tid = ucs_get_tid();
+
+    ASSERTV(round_robin == true) << "Only support round_robin method now";
+
+    if (round_robin == true) {
+        ASSERTV(thread_idx < workers_size)
+        << "thread number needs to be equal with workers number";
+
+        return thread_idx % workers_size;
+    } else {
+        return tid % workers_size;
+    }
+}
+
+static int do_server(const options_t& test_opts,
+                     std::shared_ptr<ucp_context> gctx,
+                     std::vector<std::shared_ptr<ucp_worker> >& workers,
+                     unsigned id, std::promise<int> && prms)
+{
+    uint32_t worker_idx = get_worker_id(id, workers.size());
+
+    std::shared_ptr<ucp_worker> worker = workers[worker_idx];
+    LOG << "server thread : " << id << ", use worker id " << worker_idx;
+
+    DemoServer server(test_opts, gctx, worker, id);
     if (!server.init("iodemo_server")) {
+        prms.set_value(-1);
         return -1;
     }
 
     server.run();
+
+    prms.set_value(0);
     return 0;
 }
 
-static int do_client(options_t& test_opts)
+static int do_client(options_t& test_opts,
+                     std::shared_ptr<ucp_context> gctx,
+                     std::vector<std::shared_ptr<ucp_worker> >& workers,
+                     unsigned id, std::promise<int> && prms)
 {
     IoDemoRandom::srand(test_opts.random_seed);
     LOG << "random seed: " << test_opts.random_seed;
@@ -3009,13 +3141,22 @@ static int do_client(options_t& test_opts)
         vlog << " " << test_opts.servers[i];
     }
 
-    DemoClient client(test_opts);
+    uint32_t worker_idx = get_worker_id(id, workers.size());
+
+    std::shared_ptr<ucp_worker> worker = workers[worker_idx];
+    LOG << "client thread : " << id << ", use worker id " << worker_idx;
+
+    DemoClient client(test_opts, gctx, worker, id);
     if (!client.init("iodemo_client")) {
+        prms.set_value(-1);
         return -1;
     }
 
     DemoClient::status_t status = client.run();
     LOG << "Client exit with status '" << DemoClient::get_status_str(status) << "'";
+
+    prms.set_value(((status == DemoClient::OK) || (status == DemoClient::RUNTIME_EXCEEDED)) ? 0 : -1);
+
     return ((status == DemoClient::OK) ||
             (status == DemoClient::RUNTIME_EXCEEDED)) ? 0 : -1;
 }
@@ -3046,6 +3187,8 @@ int main(int argc, char **argv)
 {
     options_t test_opts;
     int ret;
+    std::vector<std::pair<std::thread, std::future<int> > > cthreads;
+    std::vector<std::pair<std::thread, std::future<int> > > sthreads;
 
     print_info(argc, argv);
 
@@ -3056,9 +3199,56 @@ int main(int argc, char **argv)
         return ret;
     }
 
-    if (test_opts.servers.empty()) {
-        return do_server(test_opts);
-    } else {
-        return do_client(test_opts);
+    std::shared_ptr<ucp_context> gctx;
+    if (init_ucp_ctx(test_opts, "bidir_iodemo", gctx) == false) {
+        return -1;
     }
+
+    std::vector<std::shared_ptr<ucp_worker> > cworkers;
+    if (create_ucp_workers(test_opts, gctx, cworkers, true) == false) {
+        return -1;
+    }
+
+    std::vector<std::shared_ptr<ucp_worker> > sworkers;
+    if (create_ucp_workers(test_opts, gctx, sworkers) == false) {
+        return -1;
+    }
+
+    for (int idx = 0; idx < test_opts.thread_count; idx++) {
+        std::promise<int> prms;
+        std::future<int> fur = prms.get_future();
+
+        std::thread thread(do_server, std::ref(test_opts), gctx,
+                           std::ref(sworkers), idx, std::move(prms));
+        sthreads.push_back(std::make_pair(std::move(thread), std::move(fur)));
+    }
+
+    for (int idx = 0; idx < test_opts.thread_count; idx++) {
+        std::promise<int> prms;
+        std::future<int> fur = prms.get_future();
+
+        std::thread thread(do_client, std::ref(test_opts), gctx,
+                           std::ref(cworkers), idx, std::move(prms));
+        cthreads.push_back(std::make_pair(std::move(thread),std::move(fur)));
+    }
+
+    for (auto& thread_rst : cthreads) {
+        auto thread = std::move(thread_rst.first);
+        auto fur    = std::move(thread_rst.second);
+        if (ret == 0) {
+            ret = fur.get();
+        }
+        thread.join();
+    }
+
+    for (auto& thread_rst : sthreads) {
+        auto thread = std::move(thread_rst.first);
+        auto fur    = std::move(thread_rst.second);
+        if (ret == 0) {
+            ret = fur.get();
+        }
+        thread.join();
+    }
+
+    return ret;
 }
