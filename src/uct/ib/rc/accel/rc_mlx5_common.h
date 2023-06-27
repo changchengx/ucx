@@ -694,11 +694,21 @@ void uct_rc_mlx5_common_fill_dv_qp_attr(uct_rc_mlx5_iface_common_t *iface,
 #endif
 
 #if HAVE_DEVX
+ucs_status_t
+uct_rc_mlx5_iface_modify_udp_sport(uct_ib_mlx5_md_t *md,
+        uct_ib_mlx5_qp_t *qp, uint16_t udp_sport);
+
 ucs_status_t uct_rc_mlx5_iface_common_devx_connect_qp(
         uct_rc_mlx5_iface_common_t *iface, uct_ib_mlx5_qp_t *qp,
         uint32_t dest_qp_num, struct ibv_ah_attr *ah_attr,
         enum ibv_mtu path_mtu, uint8_t path_index, unsigned max_rd_atomic);
 #else
+static UCS_F_MAYBE_UNUSED ucs_status_t
+uct_rc_mlx5_iface_modify_udp_sport(uct_ib_mlx5_md_t *md,
+        uct_ib_mlx5_qp_t *qp, uint16_t udp_sport)
+{
+    return UCS_ERR_UNSUPPORTED;
+}
 static UCS_F_MAYBE_UNUSED ucs_status_t uct_rc_mlx5_iface_common_devx_connect_qp(
         uct_rc_mlx5_iface_common_t *iface, uct_ib_mlx5_qp_t *qp,
         uint32_t dest_qp_num, struct ibv_ah_attr *ah_attr,
