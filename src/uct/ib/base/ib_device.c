@@ -1294,7 +1294,7 @@ const char* uct_ib_ah_attr_str(char *buf, size_t max,
     char *p    = buf;
     char *endp = buf + max;
 
-    snprintf(p, endp - p, "dlid=%d sl=%d port=%d src_path_bits=%d",
+    snprintf(p, endp - p, "dlid=0x%x sl=0x%x port=%d src_path_bits=%d",
              ah_attr->dlid, ah_attr->sl,
              ah_attr->port_num, ah_attr->src_path_bits);
     p += strlen(p);
@@ -1304,7 +1304,7 @@ const char* uct_ib_ah_attr_str(char *buf, size_t max,
         p += strlen(p);
         uct_ib_gid_str(&ah_attr->grh.dgid, p, endp - p);
         p += strlen(p);
-        snprintf(p, endp - p, " sgid_index=%d traffic_class=%d",
+        snprintf(p, endp - p, " sgid_index=%d traffic_class=0x%x",
                  ah_attr->grh.sgid_index, ah_attr->grh.traffic_class);
     }
 
