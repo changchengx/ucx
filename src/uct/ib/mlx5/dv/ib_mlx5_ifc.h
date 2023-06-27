@@ -153,7 +153,8 @@ struct uct_ib_mlx5_cmd_hca_cap_bits {
 
     uint8_t    reserved_at_140[0xa];
     uint8_t    log_max_ra_req_qp[0x6];
-    uint8_t    reserved_at_150[0x2];
+    uint8_t    reserved_at_150[0x1];
+    uint8_t    rts2rts_udp_sport[0x1];
     uint8_t    rts2rts_lag_tx_port_affinity[0x1];
     uint8_t    reserved_at_153[0x7];
     uint8_t    log_max_ra_res_qp[0x6];
