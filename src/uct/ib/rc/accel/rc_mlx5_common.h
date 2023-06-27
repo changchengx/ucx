@@ -708,6 +708,16 @@ static UCS_F_MAYBE_UNUSED ucs_status_t uct_rc_mlx5_iface_common_devx_connect_qp(
 }
 #endif
 
+#if HAVE_DEVX
+ucs_status_t
+uct_rc_mlx5_iface_devx_modify_udp_sport(uct_ib_mlx5_md_t *md,
+        uct_ib_mlx5_qp_t *qp, uint16_t udp_sport);
+#endif
+
+ucs_status_t
+uct_rc_mlx5_iface_modify_udp_sport(uct_ib_mlx5_md_t *md,
+        uct_ib_mlx5_qp_t *qp, uint16_t udp_sport);
+
 ucs_status_t uct_rc_mlx5_devx_iface_subscribe_event(
         uct_rc_mlx5_iface_common_t *iface,
         struct mlx5dv_devx_event_channel *event_channel,

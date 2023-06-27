@@ -314,6 +314,25 @@ static void uct_rc_mlx5_iface_progress_enable(uct_iface_h tl_iface, unsigned fla
                                       iface->super.progress, flags);
 }
 
+ucs_status_t
+uct_rc_mlx5_iface_modify_udp_sport(uct_ib_mlx5_md_t *md,
+        uct_ib_mlx5_qp_t *qp, uint16_t udp_sport)
+{
+#if HAVE_DEVX
+    if (md->flags & UCT_IB_MLX5_MD_FLAG_DEVX_RC_QP) {
+        return uct_rc_mlx5_iface_devx_modify_udp_sport(md, qp, udp_sport);
+    }
+#endif
+
+    if (mlx5dv_modify_qp_udp_sport(qp->verbs.qp, udp_sport) != 0) {
+        ucs_warn("%s: failed to modify upd_sport=0x%x in rts2rts",
+                 uct_ib_device_name(&md->super.dev), udp_sport);
+        return UCS_ERR_IO_ERROR;
+    }
+
+    return UCS_OK;
+}
+
 ucs_status_t uct_rc_mlx5_iface_create_qp(uct_rc_mlx5_iface_common_t *iface,
                                          uct_ib_mlx5_qp_t *qp,
                                          uct_ib_mlx5_txwq_t *txwq,

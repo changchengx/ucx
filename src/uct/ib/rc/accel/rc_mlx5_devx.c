@@ -381,6 +381,34 @@ void uct_rc_mlx5_devx_cleanup_srq(uct_ib_mlx5_md_t *md, uct_ib_mlx5_srq_t *srq)
     uct_ib_mlx5_md_buf_free(md, srq->buf, &srq->devx.mem);
 }
 
+ucs_status_t
+uct_rc_mlx5_iface_devx_modify_udp_sport(uct_ib_mlx5_md_t *md,
+        uct_ib_mlx5_qp_t *qp, uint16_t udp_sport)
+{
+    char in_2rts[UCT_IB_MLX5DV_ST_SZ_BYTES(rts2rts_qp_in)]    = {};
+    char out_2rts[UCT_IB_MLX5DV_ST_SZ_BYTES(rts2rts_qp_out)]  = {};
+    uint64_t opt_param_mask = (1 << 2); // MLX5_QPC_OPT_MASK_32_UDP_SPORT
+    ucs_status_t status;
+    void *qpc;
+
+    UCT_IB_MLX5DV_SET(rts2rts_qp_in, in_2rts, opcode,
+                      UCT_IB_MLX5_CMD_OP_RTS2RTS_QP);
+    UCT_IB_MLX5DV_SET(rts2rts_qp_in, in_2rts, qpn, qp->qp_num);
+    UCT_IB_MLX5DV_SET64(rts2rts_qp_in, in_2rts, opt_param_mask_95_32, opt_param_mask);
+
+    qpc = UCT_IB_MLX5DV_ADDR_OF(rts2rts_qp_in, in_2rts, qpc);
+    UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.udp_sport, udp_sport);
+
+    status = uct_ib_mlx5_devx_modify_qp(qp, in_2rts, sizeof(in_2rts),
+                                        out_2rts, sizeof(out_2rts));
+    if (status != UCS_OK) {
+        ucs_warn("%s: failed to modify upd_sport=0x%x in rts2rts",
+                 uct_ib_device_name(&md->super.dev), udp_sport);
+    }
+
+    return status;
+}
+
 ucs_status_t uct_rc_mlx5_iface_common_devx_connect_qp(
         uct_rc_mlx5_iface_common_t *iface, uct_ib_mlx5_qp_t *qp,
         uint32_t dest_qp_num, struct ibv_ah_attr *ah_attr,
