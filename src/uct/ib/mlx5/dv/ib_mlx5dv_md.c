@@ -1060,6 +1060,7 @@ static ucs_status_t uct_ib_mlx5_devx_md_open(struct ibv_device *ibv_device,
         goto err_lru_cleanup;
     }
 
+    ucs_warn("rts2rts udp_sport = 0x%x\n", UCT_IB_MLX5DV_GET(cmd_hca_cap, cap, rts2rts_udp_sport));
     status = uct_ib_mlx5_devx_query_lag(md, &lag_state);
     if ((status != UCS_OK) || (lag_state == 0)) {
         dev->lag_level = 1;
