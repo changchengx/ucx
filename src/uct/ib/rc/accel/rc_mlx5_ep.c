@@ -39,9 +39,20 @@ uct_rc_mlx5_ep_zcopy_post(uct_rc_mlx5_ep_t *ep, unsigned opcode,
 {
     uct_rc_mlx5_iface_common_t *iface  = ucs_derived_of(ep->super.super.super.iface,
                                                         uct_rc_mlx5_iface_common_t);
+    uct_ib_mlx5_md_t *md = uct_ib_mlx5_iface_md(&iface->super.super);
+    static uint32_t ripple_udp_sport = 0;
     uint16_t sn;
 
     sn = ep->tx.wq.sw_pi;
+
+    ripple_udp_sport++;
+    if ((ripple_udp_sport & 0x1fffff) == 0x100000) {
+        uct_rc_mlx5_iface_modify_udp_sport(md, &ep->tx.wq.super,
+                                           UCT_IB_ROCE_UDP_SRC_PORT_BASE);
+    } else if ((ripple_udp_sport & 0xfffff) == 0x80000) {
+        uct_rc_mlx5_iface_modify_udp_sport(md, &ep->tx.wq.super,
+                                           UCT_IB_ROCE_UDP_SRC_PORT_BASE + 1);
+    }
     uct_rc_mlx5_txqp_dptr_post_iov(iface, IBV_QPT_RC,
                                    &ep->super.txqp, &ep->tx.wq,
                                    opcode, iov, iovcnt,

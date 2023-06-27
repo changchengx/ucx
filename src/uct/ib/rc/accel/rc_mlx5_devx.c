@@ -462,8 +462,10 @@ ucs_status_t uct_rc_mlx5_iface_common_devx_connect_qp(
                               uct_ib_iface_roce_dscp(&iface->super.super));
         }
 
+#if 0
         uct_ib_mlx5_devx_set_qpc_port_affinity(md, path_index, qpc,
                                                &opt_param_mask);
+#endif
     } else {
         UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.grh, ah_attr->is_global);
         UCT_IB_MLX5DV_SET(qpc, qpc, primary_address_path.rlid, ah_attr->dlid);
