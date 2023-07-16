@@ -253,15 +253,13 @@ static ucs_status_t init_iface(char *dev_name, char *tl_name,
     params.field_mask           = UCT_IFACE_PARAM_FIELD_OPEN_MODE   |
                                   UCT_IFACE_PARAM_FIELD_DEVICE      |
                                   UCT_IFACE_PARAM_FIELD_STATS_ROOT  |
-                                  UCT_IFACE_PARAM_FIELD_RX_HEADROOM |
-                                  UCT_IFACE_PARAM_FIELD_CPU_MASK;
+                                  UCT_IFACE_PARAM_FIELD_RX_HEADROOM;
     params.open_mode            = UCT_IFACE_OPEN_MODE_DEVICE;
     params.mode.device.tl_name  = tl_name;
     params.mode.device.dev_name = dev_name;
     params.stats_root           = NULL;
     params.rx_headroom          = sizeof(recv_desc_t);
 
-    UCS_CPU_ZERO(&params.cpu_mask);
     /* Read transport-specific interface configuration */
     status = uct_md_iface_config_read(iface_p->md, tl_name, NULL, NULL, &config);
     CHKERR_JUMP(UCS_OK != status, "setup iface_config", error_ret);
